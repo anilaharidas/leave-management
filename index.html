@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1f6f5c">
+<meta name="theme-color" content="#5b4bdb">
 <title>Leave App – Employee</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f5f3ee; --card:#fff; --ink:#1d2321; --mute:#6d746f; --line:#e6e2d9;
-  --brand:#1f6f5c; --brand-d:#154f41; --brand-l:#e3f0ec;
-  --amber:#b7791f; --amber-l:#fbf0d9; --green:#2f855a; --green-l:#e2f3ea;
-  --red:#c0392b; --red-l:#fbe6e3; --blue:#2b6cb0; --blue-l:#e4eef9; --plum:#7a4a8a; --plum-l:#f0e6f4;
+  --bg:#f4f2fb; --card:#fff; --ink:#1e1b33; --mute:#716d8c; --line:#e7e3f4;
+  --brand:#5b4bdb; --brand-d:#4333b8; --brand-l:#ece9fd; --grad:linear-gradient(135deg,#5b4bdb 0%,#8a4fe0 55%,#d0408f 100%);
+  --amber:#b86e00; --amber-l:#fff0d1; --green:#13875a; --green-l:#dcf5e8;
+  --red:#d6405a; --red-l:#fde6ea; --blue:#0e8fa3; --blue-l:#dff3f6; --plum:#c0398f; --plum-l:#fae4f2;
   --r:18px;
 }
 @media (prefers-color-scheme:dark){
-  :root{--bg:#121614;--card:#1b211e;--ink:#eef1ee;--mute:#98a39d;--line:#2a322e;--brand:#4cb398;--brand-d:#7fd1ba;--brand-l:#1e332d;
-  --amber-l:#3a2f17;--green-l:#183427;--red-l:#3b1f1b;--blue-l:#1a2a3c;--plum-l:#2e2036;--amber:#e0a84a;--green:#5cc48d;--red:#ef7b6d;--blue:#6aa7e6;--plum:#c49bd4}
+  :root{--bg:#12101f;--card:#1c1930;--ink:#f0eefc;--mute:#a09cc0;--line:#2d2947;--brand:#8b7dff;--brand-d:#b4a9ff;--brand-l:#2a2550;
+  --amber-l:#3b2e12;--green-l:#143a2a;--red-l:#3d1b25;--blue-l:#12333a;--plum-l:#3a1b33;--amber:#f0b04a;--green:#52d49a;--red:#ff7b91;--blue:#4fc8dc;--plum:#ee7cc4}
 }
 *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;min-width:0}
 html{-webkit-text-size-adjust:100%}
@@ -39,12 +39,12 @@ header.top{display:flex;align-items:center;gap:12px;padding:20px 0 14px}
 header.top .t{flex:1}
 header.top .t small{color:var(--mute);font-size:13px;display:block}
 header.top .t h1{font-size:24px;line-height:1.15}
-.avatar{width:42px;height:42px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;border:none;cursor:pointer;flex:none}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;border:none;cursor:pointer;flex:none}
 .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
 .sec{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 10px}
 .sec h2{font-size:18px}.sec a{font-size:13px;color:var(--brand);font-weight:600;cursor:pointer}
-.hero{background:var(--brand);color:#fff;border:none;position:relative;overflow:hidden}
+.hero{background:var(--grad);color:#fff;border:none;position:relative;overflow:hidden}
 .hero:after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
 .hero small{opacity:.8;font-size:13px}
 .hero .big{font-family:Fraunces,serif;font-size:40px;line-height:1.1;margin:4px 0 12px}
@@ -78,7 +78,7 @@ nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px
 .qa,.type,.fl,.menu,.req{min-height:44px}
 nav button{flex:1;border:none;background:none;color:var(--mute);font:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
 nav button.on{color:var(--brand)}
-nav button.apply .fab{width:50px;height:50px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;margin-top:-26px;box-shadow:0 6px 16px rgba(31,111,92,.4);border:4px solid var(--bg)}
+nav button.apply .fab{width:50px;height:50px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;margin-top:-26px;box-shadow:0 8px 20px rgba(91,75,219,.45);border:4px solid var(--bg)}
 nav button.apply{color:var(--brand)}
 svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 /* forms */
@@ -97,20 +97,20 @@ textarea.in{resize:none;height:90px}
 .toggle{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:12px 14px;border:1.5px solid var(--line);border-radius:13px;background:var(--card)}
 .sw{width:46px;height:26px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;border:none;transition:.2s}
 .sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
-.sw.on{background:var(--brand)}.sw.on:after{left:23px}
+.sw.on{background:var(--grad)}.sw.on:after{left:23px}
 .mgr{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:13px;background:var(--brand-l);margin-top:14px;font-size:13px}
-.mgr .avatar{width:34px;height:34px;font-size:12px;background:var(--brand-d)}
+.mgr .avatar{width:34px;height:34px;font-size:12px}
 .sum{margin-top:14px;padding:14px;border-radius:13px;border:1.5px dashed var(--line);font-size:14px}
 .sum b{font-size:18px}
 .err{background:var(--red-l);color:var(--red);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px}
-.btn{width:100%;padding:15px;border-radius:15px;border:none;background:var(--brand);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:18px}
-.btn:active{background:var(--brand-d)}
-.btn.ghost{background:none;color:var(--red);border:1.5px solid var(--line)}
+.btn{width:100%;padding:15px;border-radius:15px;border:none;background:var(--grad);box-shadow:0 8px 18px rgba(91,75,219,.3);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:18px}
+.btn:active{filter:brightness(.92)}
+.btn.ghost{background:none;box-shadow:none;color:var(--red);border:1.5px solid var(--line)}
 /* chips filter */
 .filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
 .filters::-webkit-scrollbar{display:none}
 .fl{border:1.5px solid var(--line);background:var(--card);padding:8px 14px;border-radius:99px;font:inherit;font-size:13px;font-weight:600;color:var(--mute);cursor:pointer;white-space:nowrap}
-.fl.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fl.on{background:var(--brand);color:#fff;border-color:var(--brand)}
 /* calendar */
 .calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .calhead b{font-family:Fraunces,serif;font-size:19px}
@@ -120,7 +120,7 @@ textarea.in{resize:none;height:90px}
 .cell.we{color:var(--mute)}
 .cell.today{outline:2px solid var(--brand);outline-offset:-2px;font-weight:700}
 .cell.hol{background:var(--brand-l);color:var(--brand-d);font-weight:700}
-.cell.sel{background:var(--ink);color:var(--bg)}
+.cell.sel{background:var(--brand);color:#fff}
 .cell i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
 .legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px}
@@ -162,11 +162,11 @@ textarea.in{resize:none;height:90px}
   nav button{flex:none;flex-direction:row;gap:12px;font-size:15px;padding:12px 14px;border-radius:13px;justify-content:flex-start}
   nav button:hover{background:var(--brand-l)}
   nav button.on{background:var(--brand-l)}
-  nav button.apply{order:-1;background:var(--brand);color:#fff;margin-bottom:14px;justify-content:center}
-  nav button.apply:hover{background:var(--brand-d)}
+  nav button.apply{order:-1;background:var(--grad);color:#fff;margin-bottom:14px;justify-content:center}
+  nav button.apply:hover{filter:brightness(.95)}
   nav button.apply .fab{width:auto;height:auto;margin:0;background:none;box-shadow:none;border:none}
   .brand{display:flex;align-items:center;gap:10px;font-family:Fraunces,serif;font-size:20px;padding:0 14px 22px;order:-2}
-  .brand i{width:34px;height:34px;border-radius:10px;background:var(--brand);display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
+  .brand i{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
   .sidelink{display:flex;margin-top:auto}
   .cols{display:grid;grid-template-columns:3fr 2fr;gap:28px;align-items:start}
   .hero .big{font-size:48px}
