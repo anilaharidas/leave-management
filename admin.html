@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b4bdb">
+<title>LeaveDesk – Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg:#f4f2fb; --card:#fff; --ink:#1e1b33; --mute:#716d8c; --line:#e7e3f4;
+  --brand:#5b4bdb; --brand-d:#4333b8; --brand-l:#ece9fd; --grad:linear-gradient(135deg,#5b4bdb 0%,#8a4fe0 55%,#d0408f 100%);
+  --amber:#b86e00; --amber-l:#fff0d1; --green:#13875a; --green-l:#dcf5e8;
+  --red:#d6405a; --red-l:#fde6ea; --blue:#0e8fa3; --blue-l:#dff3f6; --plum:#c0398f; --plum-l:#fae4f2;
+  --r:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12101f;--card:#1c1930;--ink:#f0eefc;--mute:#a09cc0;--line:#2d2947;--brand:#8b7dff;--brand-d:#b4a9ff;--brand-l:#2a2550;
+  --amber-l:#3b2e12;--green-l:#143a2a;--red-l:#3d1b25;--blue-l:#12333a;--plum-l:#3a1b33;--amber:#f0b04a;--green:#52d49a;--red:#ff7b91;--blue:#4fc8dc;--plum:#ee7cc4}
+}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;min-width:0}
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+button,input,textarea{max-width:100%}
+.m b,.hol .m b{overflow-wrap:anywhere}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.phone{width:100%;height:100vh;height:100dvh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
+#view{flex:1;overflow-y:auto;padding:0 16px 110px;scroll-behavior:smooth}
+#view>.page{max-width:1080px;margin:0 auto}
+.narrow{max-width:620px;margin:0 auto}
+.cols{display:block}
+.list2{display:block}
+.brand,.sidelink{display:none}
+.toast{max-width:420px;margin:0 auto}
+#view::-webkit-scrollbar{display:none}
+h1,h2,.serif{font-family:Fraunces,serif;font-weight:600}
+header.top{display:flex;align-items:center;gap:12px;padding:20px 0 14px}
+header.top .t{flex:1}
+header.top .t small{color:var(--mute);font-size:13px;display:block}
+header.top .t h1{font-size:24px;line-height:1.15}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;border:none;cursor:pointer;flex:none}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 10px}
+.sec h2{font-size:18px}.sec a{font-size:13px;color:var(--brand);font-weight:600;cursor:pointer}
+.hero{background:var(--grad);color:#fff;border:none;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero small{opacity:.8;font-size:13px}
+.hero .big{font-family:Fraunces,serif;font-size:40px;line-height:1.1;margin:4px 0 12px}
+.hero .row{display:flex;gap:8px}
+.hero .chip{background:rgba(255,255,255,.16);border-radius:12px;padding:8px 12px;font-size:13px;flex:1}
+.hero .chip b{display:block;font-size:17px}
+.balances{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bal{text-align:center;padding:14px 6px}
+.ring{width:62px;height:62px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.ring span{width:48px;height:48px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:700;font-size:16px}
+.bal small{color:var(--mute);font-size:12px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qa{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:14px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:8px}
+.qa .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center}
+.qa b{font-size:15px}.qa small{color:var(--mute);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.pill.Pending{background:var(--amber-l);color:var(--amber)}
+.pill.Approved{background:var(--green-l);color:var(--green)}
+.pill.Rejected{background:var(--red-l);color:var(--red)}
+.pill.Cancelled{background:var(--line);color:var(--mute)}
+.req{display:flex;gap:12px;align-items:center;cursor:pointer;padding:14px}
+.req .ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:none}
+.req .m{flex:1;min-width:0}.req .m b{display:block;font-size:15px}.req .m small{color:var(--mute);font-size:13px}
+.hol{display:flex;gap:12px;align-items:center;padding:12px 14px}
+.hol .d{width:46px;text-align:center;border-radius:12px;background:var(--brand-l);color:var(--brand-d);padding:6px 0;flex:none}
+.hol .d b{display:block;font-size:18px;line-height:1}.hol .d small{font-size:11px;text-transform:uppercase;font-weight:600}
+.hol .m b{display:block;font-size:14px}.hol .m small{color:var(--mute);font-size:12px}
+/* nav */
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 6px calc(10px + env(safe-area-inset-bottom));z-index:5}
+#view{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.qa,.type,.fl,.menu,.req{min-height:44px}
+nav button{flex:1;border:none;background:none;color:var(--mute);font:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+nav button.on{color:var(--brand)}
+nav button.apply .fab{width:50px;height:50px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;margin-top:-26px;box-shadow:0 8px 20px rgba(91,75,219,.45);border:4px solid var(--bg)}
+nav button.apply{color:var(--brand)}
+svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* forms */
+.seg{display:flex;background:var(--line);border-radius:14px;padding:4px;margin-bottom:16px}
+.seg button{flex:1;border:none;background:none;padding:10px;border-radius:11px;font:inherit;font-weight:600;color:var(--mute);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+label.f{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+.in{width:100%;padding:13px 14px;border-radius:13px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px}
+.in:focus{outline:none;border-color:var(--brand)}
+textarea.in{resize:none;height:90px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type{border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;font:inherit;color:var(--ink)}
+.type b{display:block;font-size:13px}.type small{color:var(--mute);font-size:11px}
+.type.on{border-color:var(--brand);background:var(--brand-l)}
+.toggle{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:12px 14px;border:1.5px solid var(--line);border-radius:13px;background:var(--card)}
+.sw{width:46px;height:26px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;border:none;transition:.2s}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.sw.on{background:var(--grad)}.sw.on:after{left:23px}
+.mgr{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:13px;background:var(--brand-l);margin-top:14px;font-size:13px}
+.mgr .avatar{width:34px;height:34px;font-size:12px}
+.sum{margin-top:14px;padding:14px;border-radius:13px;border:1.5px dashed var(--line);font-size:14px}
+.sum b{font-size:18px}
+.err{background:var(--red-l);color:var(--red);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px}
+.btn{width:100%;padding:15px;border-radius:15px;border:none;background:var(--grad);box-shadow:0 8px 18px rgba(91,75,219,.3);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:18px}
+.btn:active{filter:brightness(.92)}
+.btn.ghost{background:none;box-shadow:none;color:var(--red);border:1.5px solid var(--line)}
+/* chips filter */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.filters::-webkit-scrollbar{display:none}
+.fl{border:1.5px solid var(--line);background:var(--card);padding:8px 14px;border-radius:99px;font:inherit;font-size:13px;font-weight:600;color:var(--mute);cursor:pointer;white-space:nowrap}
+.fl.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* calendar */
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.calhead b{font-family:Fraunces,serif;font-size:19px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.grid .dow{font-size:11px;color:var(--mute);font-weight:600;padding:4px 0}
+.cell{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;font-size:14px;position:relative;cursor:pointer;border:none;background:none;color:var(--ink);font-family:inherit}
+.cell.we{color:var(--mute)}
+.cell.today{outline:2px solid var(--brand);outline-offset:-2px;font-weight:700}
+.cell.hol{background:var(--brand-l);color:var(--brand-d);font-weight:700}
+.cell.sel{background:var(--brand);color:#fff}
+.cell i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
+.legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
+.stat b{display:block;font-size:20px;font-family:Fraunces,serif}.stat small{font-size:11px;color:var(--mute)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end;animation:fade .2s}
+.sheet{background:var(--bg);width:100%;border-radius:26px 26px 0 0;padding:10px 18px 28px;max-height:88%;overflow-y:auto;animation:up .25s}
+.sheet .grab{width:40px;height:4px;background:var(--line);border-radius:9px;margin:0 auto 14px}
+@keyframes up{from{transform:translateY(100%)}}@keyframes fade{from{opacity:0}}
+.tl{position:relative;padding-left:26px;margin-top:6px}
+.tl:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tl div{position:relative;margin-bottom:16px;font-size:14px}
+.tl div:before{content:"";position:absolute;left:-23px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--c,var(--line));border:2px solid var(--bg)}
+.tl small{display:block;color:var(--mute);font-size:12px}
+.kv{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border:none}.kv span:first-child{color:var(--mute)}
+.toast{position:fixed;top:18px;left:16px;right:16px;background:var(--ink);color:var(--bg);padding:13px 16px;border-radius:14px;font-size:14px;font-weight:500;z-index:20;animation:fade .2s}
+.empty{text-align:center;color:var(--mute);padding:40px 10px;font-size:14px}
+.prof{text-align:center;padding:10px 0 4px}
+.prof .avatar{width:84px;height:84px;font-size:28px;margin:0 auto 10px}
+.prof h1{font-size:24px}.prof p{color:var(--mute);font-size:14px}
+.menu{display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:15px;border-bottom:1px solid var(--line);cursor:pointer}
+.menu:last-child{border:none}.menu span{flex:1}
+
+/* tablet / desktop */
+@media(min-width:700px){
+  #view{padding:0 32px 60px}
+  .list2{display:grid;grid-template-columns:1fr 1fr;column-gap:14px}
+  .sheet{max-width:520px;margin:0 auto}
+}
+@media(min-width:900px){
+  .phone{flex-direction:row}
+  #view{padding:0 44px 60px}
+  header.top{padding-top:32px}
+  header.top .t h1{font-size:30px}
+  nav{position:static;flex-direction:column;justify-content:flex-start;width:230px;flex:none;border-top:none;border-right:1px solid var(--line);padding:26px 14px;gap:4px;order:-1}
+  nav button{flex:none;flex-direction:row;gap:12px;font-size:15px;padding:12px 14px;border-radius:13px;justify-content:flex-start}
+  nav button:hover{background:var(--brand-l)}
+  nav button.on{background:var(--brand-l)}
+  nav button.apply{order:-1;background:var(--grad);color:#fff;margin-bottom:14px;justify-content:center}
+  nav button.apply:hover{filter:brightness(.95)}
+  nav button.apply .fab{width:auto;height:auto;margin:0;background:none;box-shadow:none;border:none}
+  .brand{display:flex;align-items:center;gap:10px;font-family:Fraunces,serif;font-size:20px;padding:0 14px 22px;order:-2}
+  .brand i{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
+  .sidelink{display:flex;margin-top:auto}
+  .cols{display:grid;grid-template-columns:3fr 2fr;gap:28px;align-items:start}
+  .hero .big{font-size:48px}
+  .scrim{align-items:center}.sheet{border-radius:26px;padding-top:22px}.sheet .grab{display:none}
+  .toast{left:auto;right:24px;top:24px;width:360px}
+}
+
+/* very small phones */
+@media(max-width:379px){
+  #view{padding-left:12px;padding-right:12px}
+  header.top .t h1{font-size:21px}
+  .hero .big{font-size:34px}.hero .row{flex-direction:column}
+  .balances{gap:6px}.bal{padding:12px 4px}.ring{width:54px;height:54px}.ring span{width:42px;height:42px;font-size:14px}
+  .types{gap:6px}.type{padding:10px 4px}
+  .two{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .cell{font-size:12px;border-radius:8px}.grid{gap:2px}
+  .req{gap:10px;padding:12px}.req .ic{width:38px;height:38px}
+  nav button{font-size:10px}
+  .card{padding:14px}
+}
+/* phones in landscape / short screens */
+@media(max-height:480px) and (max-width:899px){
+  nav{padding-top:4px;padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+  nav button{flex-direction:row;justify-content:center;gap:6px}
+  nav button.apply .fab{width:38px;height:38px;margin-top:-14px}
+  #view{padding-bottom:70px}.cell{aspect-ratio:auto;height:34px}
+  .sheet{max-height:94%}
+}
+/* large screens */
+@media(min-width:1280px){
+  nav{width:260px}#view{padding:0 64px 60px}#view>.page{max-width:1180px}
+}
+@media(min-width:1800px){html{font-size:18px}#view>.page{max-width:1360px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* ---------- admin additions ---------- */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(min-width:900px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.kpi small{color:var(--mute);font-size:12px;display:block}
+.kpi b{font-family:Fraunces,serif;font-size:30px;line-height:1.2}
+.kpi.g{background:var(--grad);border:none;color:#fff}.kpi.g small{color:rgba(255,255,255,.8)}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.tag.admin{background:var(--plum-l);color:var(--plum)}.tag.manager{background:var(--blue-l);color:var(--blue)}.tag.employee{background:var(--brand-l);color:var(--brand-d)}.tag.off{background:var(--line);color:var(--mute)}
+.who{display:flex;gap:12px;align-items:center;padding:12px 14px;cursor:pointer}
+.who .avatar{width:42px;height:42px;font-size:14px}
+.who .m{flex:1;min-width:0}.who .m b{display:block;font-size:15px}.who .m small{color:var(--mute);font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who.off{opacity:.55}
+.search{position:relative;margin-bottom:12px}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--mute);width:20px;height:20px}
+.search .in{padding-left:42px}
+.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}
+select.in{appearance:auto}
+.btn.sm{width:auto;padding:10px 16px;font-size:14px;margin-top:0;border-radius:12px}
+.btn.line{background:none;box-shadow:none;color:var(--brand);border:1.5px solid var(--line)}
+.btn.danger{background:var(--red);box-shadow:none}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:26px 16px;text-align:center;background:var(--card);cursor:pointer;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-l)}
+.drop svg{width:34px;height:34px;color:var(--brand);margin-bottom:6px}
+.drop b{display:block}.drop small{color:var(--mute)}
+.chips{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0}
+@media(min-width:700px){.chips{grid-template-columns:repeat(4,1fr)}}
+.chipv{border-radius:14px;padding:10px 12px;font-size:12px;font-weight:600}
+.chipv b{display:block;font-size:22px;font-family:Fraunces,serif}
+.chipv.t{background:var(--brand-l);color:var(--brand-d)}.chipv.v{background:var(--green-l);color:var(--green)}.chipv.e{background:var(--red-l);color:var(--red)}.chipv.w{background:var(--amber-l);color:var(--amber)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);background:var(--bg)}
+tr:last-child td{border-bottom:none}
+tr.bad td{background:var(--red-l)}
+.errline{display:flex;gap:10px;font-size:13px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.errline:last-child{border:none}.errline b{color:var(--red);flex:none}
+.bar{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--line)}
+.bar i{display:block}
+.tree details{margin-left:0}
+.tree .lvl{margin-left:18px;border-left:2px solid var(--line);padding-left:10px}
+.tree summary,.tree .leaf{list-style:none;cursor:pointer;display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:12px}
+.tree summary::-webkit-details-marker{display:none}
+.tree summary:hover,.tree .leaf:hover{background:var(--brand-l)}
+.tree .avatar{width:34px;height:34px;font-size:12px}
+.tree .m{flex:1}.tree .m b{font-size:14px;display:block}.tree .m small{font-size:12px;color:var(--mute)}
+.tree summary:before{content:"▸";color:var(--mute);width:12px;transition:.15s}
+.tree details[open]>summary:before{transform:rotate(90deg)}
+.tree .leaf:before{content:"";width:12px}
+.act{display:flex;gap:12px;padding:12px 14px;align-items:flex-start}
+.act .dot{width:10px;height:10px;border-radius:50%;background:var(--brand);margin-top:6px;flex:none}
+.act b{font-size:14px;display:block}.act small{color:var(--mute);font-size:12px}
+.more{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);font-size:16px;cursor:pointer}
+.more span{flex:1}
+.hmonth{margin:18px 2px 8px;font-size:13px;color:var(--mute);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.iconbtn.sm{width:36px;height:36px}
+.dOnly{display:none!important}.mOnly{display:flex}
+@media(min-width:900px){.dOnly{display:flex!important}.mOnly{display:none!important}}
+.fab-add{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(86px + env(safe-area-inset-bottom));width:54px;height:54px;border-radius:50%;border:none;background:var(--grad);color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px rgba(91,75,219,.45);cursor:pointer;z-index:4}
+@media(min-width:900px){.fab-add{display:none}}
+.chk{width:22px;height:22px;accent-color:var(--brand);flex:none;cursor:pointer}
+.selbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.selbar .cnt{flex:1;font-size:13px;color:var(--mute);font-weight:600;min-width:90px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.addrow{display:flex;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.addrow .m{flex:1;min-width:0}.addrow .m b{font-size:14px;display:block}.addrow .m small{font-size:12px;color:var(--mute)}
+.hdr-actions{display:none}
+@media(min-width:900px){.hdr-actions{display:block}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div id="view"></div>
+  <nav id="nav"></nav>
+  <div id="overlay"></div>
+</div>
+
+<script>
+/* =============== data =============== */
+const TODAY='2026-10-12';
+const ADMIN={id:'EMP-1001',name:'Meera Iyer',role:'HR Admin'};
+let teams=['Design','Engineering','Sales','HR','Finance'];
+let teamLeads={Design:'EMP-1010',Engineering:'EMP-1020',Sales:'EMP-1030',HR:'EMP-1001'};
+let emps=[
+ {id:'EMP-1001',name:'Meera Iyer',email:'meera.iyer@company.com',desig:'HR Head',role:'admin',team:'HR',mgr:null,active:true},
+ {id:'EMP-1010',name:'Arjun Mehta',email:'arjun.mehta@company.com',desig:'Design Lead',role:'manager',team:'Design',mgr:'EMP-1001',active:true},
+ {id:'EMP-1042',name:'Priya Nair',email:'priya.nair@company.com',desig:'Product Designer',role:'employee',team:'Design',mgr:'EMP-1010',active:true},
+ {id:'EMP-1043',name:'Rohan Das',email:'rohan.das@company.com',desig:'UI Designer',role:'employee',team:'Design',mgr:'EMP-1010',active:true},
+ {id:'EMP-1020',name:'Kavya Menon',email:'kavya.menon@company.com',desig:'Engineering Manager',role:'manager',team:'Engineering',mgr:'EMP-1001',active:true},
+ {id:'EMP-1021',name:'Sanjay Pillai',email:'sanjay.pillai@company.com',desig:'Senior Engineer',role:'employee',team:'Engineering',mgr:'EMP-1020',active:true},
+ {id:'EMP-1022',name:'Neha Kapoor',email:'neha.kapoor@company.com',desig:'Software Engineer',role:'employee',team:'Engineering',mgr:'EMP-1020',active:true},
+ {id:'EMP-1023',name:'Imran Sheikh',email:'imran.sheikh@company.com',desig:'QA Engineer',role:'employee',team:'Engineering',mgr:'EMP-1020',active:true},
+ {id:'EMP-1030',name:'Divya Rao',email:'divya.rao@company.com',desig:'Sales Head',role:'manager',team:'Sales',mgr:'EMP-1001',active:true},
+ {id:'EMP-1031',name:'Vikram Singh',email:'vikram.singh@company.com',desig:'Account Executive',role:'employee',team:'Sales',mgr:'EMP-1030',active:true},
+ {id:'EMP-1032',name:'Ananya Bose',email:'ananya.bose@company.com',desig:'Sales Associate',role:'employee',team:'Sales',mgr:'EMP-1030',active:true},
+ {id:'EMP-1033',name:'Karan Malhotra',email:'karan.malhotra@company.com',desig:'Sales Associate',role:'employee',team:'Sales',mgr:'EMP-1030',active:false},
+ {id:'EMP-1050',name:'Sneha Joseph',email:'sneha.joseph@company.com',desig:'HR Executive',role:'employee',team:'HR',mgr:'EMP-1001',active:true},
+ {id:'EMP-1060',name:'Farhan Ali',email:'farhan.ali@company.com',desig:'Accountant',role:'employee',team:'Finance',mgr:'EMP-1001',active:true},
+];
+let holidays=[
+ ['2026-01-01','New Year’s Day'],['2026-01-26','Republic Day'],['2026-03-04','Holi'],['2026-05-01','Labour Day'],
+ ['2026-08-15','Independence Day'],['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],
+ ['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']
+].map(([d,n])=>({d,n}));
+const seedReqs=[
+ {no:'LV-2026-0201',emp:'EMP-1043',kind:'leave',type:'Annual',from:'2026-10-12',to:'2026-10-13',status:'Approved',appr:'EMP-1010'},
+ {no:'LV-2026-0203',emp:'EMP-1022',kind:'leave',type:'Sick',from:'2026-10-12',to:'2026-10-12',status:'Approved',appr:'EMP-1020'},
+ {no:'WFH-2026-0120',emp:'EMP-1021',kind:'wfh',from:'2026-10-12',to:'2026-10-12',status:'Approved',appr:'EMP-1020'},
+ {no:'WFH-2026-0121',emp:'EMP-1031',kind:'wfh',from:'2026-10-12',to:'2026-10-12',status:'Approved',appr:'EMP-1030'},
+ {no:'LV-2026-0187',emp:'EMP-1042',kind:'leave',type:'Annual',from:'2026-10-14',to:'2026-10-16',status:'Pending',appr:'EMP-1010'},
+ {no:'LV-2026-0205',emp:'EMP-1060',kind:'leave',type:'Casual',from:'2026-10-15',to:'2026-10-15',status:'Pending',appr:'EMP-1001'},
+ {no:'WFH-2026-0122',emp:'EMP-1023',kind:'wfh',from:'2026-10-14',to:'2026-10-14',status:'Pending',appr:'EMP-1020'},
+ {no:'LV-2026-0206',emp:'EMP-1032',kind:'leave',type:'Annual',from:'2026-10-19',to:'2026-10-23',status:'Pending',appr:'EMP-1030'},
+];
+const STATUSES=['present','late','absent','half_day','wfh','leave'];
+const SNAME={present:'Present',late:'Late',absent:'Absent',half_day:'Half day',wfh:'WFH',leave:'On leave'};
+const SCOL={present:'var(--green)',late:'var(--amber)',absent:'var(--red)',half_day:'var(--blue)',wfh:'var(--plum)',leave:'var(--brand)'};
+const att={};   // "EMP|date" -> {s,in,out,batch}
+let imports=[{id:'IMP-0006',file:'attendance_sep_2026.csv',by:'Meera Iyer',at:'2026-10-01 09:12',total:286,valid:286,errors:0,overwritten:0}];
+let audit=[
+ {a:'Attendance import IMP-0006',d:'attendance_sep_2026.csv · 286 rows',t:'2026-10-01 09:12'},
+ {a:'Holiday added',d:'Dussehra · 20 Oct 2026',t:'2026-09-28 16:40'},
+ {a:'Reporting manager changed',d:'Rohan Das → Arjun Mehta',t:'2026-09-20 11:05'},
+];
+(function seedAtt(){
+  const days=[]; for(let d=1;d<=9;d++){const dt=new Date(2026,9,d);if(dt.getDay()===0||dt.getDay()===6)continue;days.push(iso(dt))}
+  emps.filter(e=>e.active).forEach((e,i)=>days.forEach((ds,j)=>{
+    if(ds==='2026-10-02')return;
+    const h=(i*7+j*13)%17; let s='present',ci='09:'+String(5+(i*3+j*7)%40).padStart(2,'0'),co='18:'+String(10+(i*5+j*3)%45).padStart(2,'0');
+    if(h===3){s='absent';ci=co=''} else if(h===5){s='late';ci='10:'+String(5+(i+j)%40).padStart(2,'0')}
+    else if(h===8){s='wfh'} else if(h===11&&e.role!=='admin'){s='leave';ci=co=''}
+    att[e.id+'|'+ds]={s,in:ci,out:co,batch:'IMP-0006'};
+  }));
+})();
+
+/* =============== helpers =============== */
+const $=s=>document.querySelector(s);
+function iso(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+const P=s=>new Date(s+'T00:00');
+const fmt=(s,o={day:'numeric',month:'short'})=>P(s).toLocaleDateString('en-GB',o);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nowStamp=()=>TODAY+' '+new Date().toTimeString().slice(0,5);
+const ini=n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const byId=id=>emps.find(e=>e.id===id);
+const nameOf=id=>byId(id)?byId(id).name:'—';
+function log(a,d){audit.unshift({a,d,t:nowStamp()})}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('.phone').appendChild(t);setTimeout(()=>t.remove(),2800)}
+function closeSheet(){$('#overlay').innerHTML=''}
+function sheet(html){$('#overlay').innerHTML=`<div class="scrim" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="grab"></div>${html}</div></div>`}
+function descendants(id){const out=[];const walk=x=>emps.filter(e=>e.mgr===x).forEach(e=>{out.push(e.id);walk(e.id)});walk(id);return out}
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+const ICON={
+ grid:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
+ users:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M16 4a4 4 0 010 8M22 21c0-3-2-5-4-5.500"/>',
+ team:'<circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><path d="M12 8v4M12 12H5v4M12 12h7v4"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ cal:'<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/>',
+ more:'<circle cx="5" cy="12" r="1.500"/><circle cx="12" cy="12" r="1.500"/><circle cx="19" cy="12" r="1.500"/>',
+ org:'<rect x="9" y="3" width="6" height="5" rx="1.500"/><rect x="2" y="16" width="6" height="5" rx="1.500"/><rect x="16" y="16" width="6" height="5" rx="1.500"/><path d="M12 8v4M5 16v-4h14v4"/>',
+ chart:'<path d="M3 21h18M6 17v-5M11 17V7M16 17v-8M21 17V4"/>',
+ log:'<path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9zM14 3v6h6M8 13h8M8 17h5"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.500-4.500"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ up:'<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>',
+ right:'<path d="M9 18l6-6-6-6"/>',
+ left:'<path d="M15 18l-6-6 6-6"/>',
+ out:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
+ trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+};
+const ic=n=>`<svg viewBox="0 0 24 24">${ICON[n]}</svg>`;
+
+/* =============== state =============== */
+let tab='dashboard';
+let curTeam=0,sel=new Set(),addSel=new Set(),addQ='';
+let empQ='',empRole='All',empTeam='All';
+let repTeam='All';
+let pend=null;          // pending CSV preview
+let browseDate='2026-10-09';
+function go(t){tab=t;closeSheet();render();$('#view').scrollTop=0}
+
+/* =============== dashboard =============== */
+function covers(r,ds){return ds>=r.from&&ds<=r.to}
+function vDashboard(){
+  const active=emps.filter(e=>e.active);
+  const onLeave=seedReqs.filter(r=>r.kind==='leave'&&r.status==='Approved'&&covers(r,TODAY));
+  const wfh=seedReqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&covers(r,TODAY));
+  const pending=seedReqs.filter(r=>r.status==='Pending');
+  const noMgr=active.filter(e=>e.role!=='admin'&&!e.mgr);
+  const lastImp=imports[0];
+  const alerts=[];
+  if(noMgr.length)alerts.push(`${noMgr.length} active employee(s) have no reporting manager`);
+  const inactiveReports=active.filter(e=>e.mgr&&!byId(e.mgr).active);
+  if(inactiveReports.length)alerts.push(`${inactiveReports.length} employee(s) report to an inactive manager`);
+  const next=holidays.filter(h=>h.d>=TODAY).sort((a,b)=>a.d.localeCompare(b.d))[0];
+  return `<header class="top"><div class="t"><small>Monday, 12 October</small><h1>Hello, ${esc(ADMIN.name.split(' ')[0])}</h1></div><button class="avatar" onclick="toast('Signed in as ${esc(ADMIN.role)}')">${ini(ADMIN.name)}</button></header>
+  <div class="kpis">
+    <div class="kpi g"><small>Active employees</small><b>${active.length}</b></div>
+    <div class="kpi"><small>On leave today</small><b style="color:var(--brand)">${onLeave.length}</b></div>
+    <div class="kpi"><small>WFH today</small><b style="color:var(--plum)">${wfh.length}</b></div>
+    <div class="kpi"><small>Pending approvals</small><b style="color:var(--amber)">${pending.length}</b></div>
+  </div>
+  ${alerts.length?`<div class="card" style="background:var(--amber-l);border-color:transparent"><b style="color:var(--amber)">Needs attention</b>${alerts.map(a=>`<div style="font-size:14px;margin-top:6px">• ${a}</div>`).join('')}<button class="btn line sm" style="margin-top:10px" onclick="go('teams')">Fix in Teams & Reporting</button></div>`:''}
+  <div class="cols"><div>
+    <div class="sec" style="margin-top:6px"><h2>Away today</h2></div>
+    ${[...onLeave.map(r=>[r,'Leave · '+r.type]),...wfh.map(r=>[r,'Work from home'])].map(([r,l])=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(nameOf(r.emp))}</div><div class="m"><b>${esc(nameOf(r.emp))}</b><small>${l} · ${esc(byId(r.emp).team)}</small></div><span class="pill Approved">Approved</span></div>`).join('')||'<div class="empty">Everyone is in today.</div>'}
+    <div class="sec"><h2>Waiting on managers</h2></div>
+    ${pending.map(r=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(nameOf(r.emp))}</div><div class="m"><b>${esc(nameOf(r.emp))}</b><small>${r.kind==='wfh'?'WFH':r.type+' leave'} · ${fmt(r.from)}${r.to!==r.from?' – '+fmt(r.to):''} · with ${esc(nameOf(r.appr))}</small></div><span class="pill Pending">Pending</span></div>`).join('')}
+  </div><div>
+    <div class="sec" style="margin-top:6px"><h2>Quick actions</h2></div>
+    <div class="quick">
+      <button class="qa" onclick="go('attendance')"><div class="ic" style="background:var(--brand-l);color:var(--brand)">${ic('up')}</div><b>Upload attendance</b><small>Last: ${esc(lastImp.id)} · ${fmt(lastImp.at.slice(0,10))}</small></button>
+      <button class="qa" onclick="openEmp(null)"><div class="ic" style="background:var(--plum-l);color:var(--plum)">${ic('plus')}</div><b>Add employee</b><small>Profile, role, manager</small></button>
+      <button class="qa" onclick="go('holidays')"><div class="ic" style="background:var(--green-l);color:var(--green)">${ic('cal')}</div><b>Holidays</b><small>Next: ${next?esc(next.n)+' · '+fmt(next.d):'none'}</small></button>
+      <button class="qa" onclick="go('reports')"><div class="ic" style="background:var(--blue-l);color:var(--blue)">${ic('chart')}</div><b>Reports</b><small>Attendance by team</small></button>
+    </div>
+    <div class="sec"><h2>Recent activity</h2><a onclick="go('activity')">View all</a></div>
+    ${audit.slice(0,4).map(actRow).join('')}
+  </div></div>`;
+}
+function actRow(x){return `<div class="card act"><span class="dot"></span><div><b>${esc(x.a)}</b><small>${esc(x.d)} · ${esc(x.t)}</small></div></div>`}
+function vActivity(){return `<header class="top"><div class="t"><small>Audit trail</small><h1>Activity log</h1></div></header><div class="narrow">${audit.map(actRow).join('')}</div>`}
+
+/* =============== employees =============== */
+function empRow(e){
+  return `<div class="card who ${e.active?'':'off'}" onclick="openEmp('${e.id}')"><div class="avatar">${ini(e.name)}</div>
+   <div class="m"><b>${esc(e.name)}</b><small>${esc(e.desig||'')} · ${esc(e.team)} · ${e.id}</small></div>
+   <span class="tag ${e.active?e.role:'off'}">${e.active?e.role:'inactive'}</span></div>`;
+}
+function filteredEmps(){
+  const q=empQ.trim().toLowerCase();
+  return emps.filter(e=>(empRole==='All'||(empRole==='Inactive'?!e.active:e.active&&e.role===empRole.toLowerCase()))
+    &&(empTeam==='All'||e.team===empTeam)
+    &&(!q||[e.name,e.id,e.email,e.desig].join(' ').toLowerCase().includes(q)));
+}
+function drawEmpList(){
+  const l=filteredEmps();
+  $('#emplist').innerHTML=l.length?l.map(empRow).join(''):'<div class="empty">No employees match.</div>';
+  $('#empcount').textContent=`${l.length} of ${emps.length}`;
+}
+function vEmployees(){
+  const roles=['All','Admin','Manager','Employee','Inactive'];
+  return `<header class="top"><div class="t"><small id="empcount"></small><h1>Employees</h1></div>
+   <button class="btn sm hdr-actions" onclick="openEmp(null)">+ Add employee</button></header>
+  <div class="search">${ic('search')}<input class="in" placeholder="Search name, ID, email…" value="${esc(empQ)}" oninput="empQ=this.value;drawEmpList()"></div>
+  <div class="filters">${roles.map(r=>`<button class="fl ${empRole===r?'on':''}" onclick="empRole='${r}';render()">${r}</button>`).join('')}</div>
+  <select class="in" style="margin-bottom:12px" onchange="empTeam=this.value;drawEmpList()"><option value="All">All teams</option>${teams.map(t=>`<option ${empTeam===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
+  <div id="emplist" class="list2"></div>
+  <button class="fab-add" aria-label="Add employee" onclick="openEmp(null)">${ic('plus')}</button>`;
+}
+function nextCode(){const n=Math.max(...emps.map(e=>+e.id.split('-')[1]))+1;return 'EMP-'+n}
+function openEmp(id){
+  const e=id?byId(id):{id:nextCode(),name:'',email:'',desig:'',role:'employee',team:teams[0],mgr:null,active:true};
+  const bad=id?[id,...descendants(id)]:[];
+  const mgrs=emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!bad.includes(m.id));
+  sheet(`<h2 style="font-size:22px">${id?'Edit employee':'Add employee'}</h2>
+   <label class="f">Full name</label><input class="in" id="f_name" value="${esc(e.name)}">
+   <div class="two"><div><label class="f">Employee ID</label><input class="in" id="f_code" value="${esc(e.id)}" ${id?'readonly':''}></div>
+   <div><label class="f">Designation</label><input class="in" id="f_desig" value="${esc(e.desig)}"></div></div>
+   <label class="f">Work email</label><input class="in" id="f_email" type="email" value="${esc(e.email)}">
+   <div class="two"><div><label class="f">Role</label><select class="in" id="f_role">${['employee','manager','admin'].map(r=>`<option ${e.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
+   <div><label class="f">Team</label><select class="in" id="f_team">${teams.map(t=>`<option ${e.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div></div>
+   <label class="f">Reporting manager</label><select class="in" id="f_mgr"><option value="">— None —</option>${mgrs.map(m=>`<option value="${m.id}" ${e.mgr===m.id?'selected':''}>${esc(m.name)} (${esc(m.team)})</option>`).join('')}</select>
+   <div class="toggle"><div><b style="font-size:14px">Active account</b><br><small style="color:var(--mute)">Inactive staff can’t log in or be assigned requests</small></div><button class="sw ${e.active?'on':''}" id="f_active" onclick="this.classList.toggle('on')"></button></div>
+   <div id="f_err"></div>
+   <button class="btn" onclick="saveEmp(${id?`'${id}'`:'null'})">${id?'Save changes':'Create employee'}</button>`);
+}
+function saveEmp(id){
+  const v=k=>$('#f_'+k).value.trim();
+  const d={name:v('name'),email:v('email').toLowerCase(),desig:v('desig'),role:v('role'),team:v('team'),mgr:v('mgr')||null,active:$('#f_active').classList.contains('on')};
+  const code=id||v('code').toUpperCase();
+  const fail=m=>{$('#f_err').innerHTML=`<div class="err">${m}</div>`};
+  if(!d.name)return fail('Name is required.');
+  if(!/^EMP-\d+$/.test(code))return fail('Employee ID must look like EMP-1234.');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email))return fail('Enter a valid email address.');
+  if(!id&&byId(code))return fail('That employee ID already exists.');
+  if(emps.some(e=>e.email===d.email&&e.id!==code))return fail('That email is already used by another employee.');
+  if(d.role!=='admin'&&!d.mgr)return fail('Managers and employees need a reporting manager.');
+  if(id){
+    const e=byId(id);
+    if(!d.active&&e.active&&descendants(id).some(x=>byId(x).active)&&!confirm('This person still has active direct/indirect reports. Deactivate anyway? Their reports will need a new manager.'))return;
+    const ch=['name','email','desig','role','team','mgr','active'].filter(k=>e[k]!==d[k]);
+    Object.assign(e,d); log('Employee updated',`${e.name} · changed ${ch.join(', ')||'nothing'}`); toast('Employee updated');
+  }else{
+    emps.push({id:code,...d}); log('Employee added',`${d.name} (${code}) · ${d.role} · ${d.team}`); toast(`${d.name} added`);
+  }
+  closeSheet();render();
+}
+
+/* =============== teams & reporting =============== */
+function vTeams(){
+  return `<header class="top"><div class="t"><small>${teams.length} teams</small><h1>Teams & reporting</h1></div><button class="btn sm hdr-actions" onclick="openTeam(null)">+ Add team</button></header>
+  <div class="tools"><button class="btn sm line" onclick="openTeam(null)">+ Add team</button></div>
+  <div class="list2">${teams.map((t,ti)=>{const m=emps.filter(e=>e.team===t&&e.active);const lead=leadOf(t);
+    return `<div class="card who" onclick="openTeamPage(${ti})"><div class="avatar" style="background:var(--brand-l);color:var(--brand-d)">${ini(t)}</div><div class="m"><b>${esc(t)}</b><small>${m.length} active · Lead: ${lead?esc(lead.name):'<span style="color:var(--amber)">not set</span>'}</small></div>${ic('right')}</div>`}).join('')}</div>
+  <div class="sec"><h2>Reporting lines</h2></div>
+  <p style="color:var(--mute);font-size:13px;margin:-4px 2px 12px">Requests go to the manager set here. Changing a manager only affects new requests.</p>
+  <div class="list2">${emps.filter(e=>e.active).map(e=>{
+    const bad=[e.id,...descendants(e.id)];
+    const opts=emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!bad.includes(m.id));
+    return `<div class="card"><div class="row" style="margin-bottom:10px"><div class="avatar" style="flex:none;width:36px;height:36px;font-size:12px">${ini(e.name)}</div><div style="flex:1;min-width:0"><b style="font-size:14px">${esc(e.name)}</b><br><small style="color:var(--mute)">${esc(e.team)} · ${esc(e.desig)}</small></div></div>
+      <select class="in" ${e.role==='admin'&&!e.mgr?'':''} onchange="setMgr('${e.id}',this.value)"><option value="">— None —</option>${opts.map(m=>`<option value="${m.id}" ${e.mgr===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></div>`}).join('')}</div>`;
+}
+function setMgr(id,val){
+  const e=byId(id);
+  if(!val&&e.role!=='admin'){toast('Only admins can have no reporting manager');render();return}
+  const old=e.mgr; e.mgr=val||null;
+  log('Reporting manager changed',`${e.name}: ${nameOf(old)} → ${val?nameOf(val):'None'}`); toast(`${e.name} now reports to ${val?nameOf(val):'no one'}`);
+}
+function openTeam(ti){
+  const name=ti===null?null:teams[ti];
+  const members=name?emps.filter(e=>e.team===name).length:0;
+  sheet(`<h2 style="font-size:22px">${name?'Edit team':'Add team'}</h2>
+   <label class="f">Team name</label><input class="in" id="t_name" value="${esc(name||'')}">
+   <div id="t_err"></div>
+   <button class="btn" onclick="saveTeam(${ti})">${name?'Save':'Create team'}</button>
+   ${name?`<button class="btn ghost" ${members?'disabled style="opacity:.5"':''} onclick="delTeam(${ti})">${members?`Can’t delete (${members} members)`:'Delete team'}</button>`:''}`);
+}
+function saveTeam(ti){
+  const old=ti===null?null:teams[ti];
+  const n=$('#t_name').value.trim();
+  const fail=m=>{$('#t_err').innerHTML=`<div class="err">${m}</div>`};
+  if(!n)return fail('Team name is required.');
+  if(teams.some(t=>t.toLowerCase()===n.toLowerCase()&&t!==old))return fail('A team with this name already exists.');
+  if(old){teams[teams.indexOf(old)]=n;emps.forEach(e=>{if(e.team===old)e.team=n});if(teamLeads[old]){teamLeads[n]=teamLeads[old];delete teamLeads[old]}log('Team renamed',`${old} → ${n}`)}
+  else{teams.push(n);log('Team created',n)}
+  closeSheet();render();toast(old?'Team updated':'Team created');
+}
+function delTeam(ti){const n=teams[ti];teams=teams.filter(t=>t!==n);delete teamLeads[n];log('Team deleted',n);closeSheet();tab='teams';render();toast('Team deleted')}
+
+/* ---- team detail ---- */
+function leadOf(t){const id=teamLeads[t];const e=id&&byId(id);return e&&e.active&&e.team===t?e:null}
+function openTeamPage(i){curTeam=i;sel=new Set();tab='team';render();$('#view').scrollTop=0}
+function vTeam(){
+  const t=teams[curTeam];
+  if(t===undefined){tab='teams';return vTeams()}
+  const mem=emps.filter(e=>e.team===t&&e.active);
+  sel=new Set([...sel].filter(id=>mem.some(e=>e.id===id)));
+  const lead=leadOf(t);
+  const none=sel.size===0, all=mem.length>0&&sel.size===mem.length;
+  return `<header class="top"><button class="iconbtn" onclick="go('teams')" aria-label="Back">${ic('left')}</button>
+    <div class="t"><small>${mem.length} active member${mem.length===1?'':'s'}</small><h1>${esc(t)}</h1></div>
+    <button class="btn sm line" onclick="openTeam(${curTeam})">Rename</button></header>
+  <div class="card"><label class="f" style="margin-top:0">Team lead</label>
+    <select class="in" onchange="setLead(this.value)"><option value="">— Not set —</option>${mem.map(e=>`<option value="${e.id}" ${lead&&lead.id===e.id?'selected':''}>${esc(e.name)} · ${esc(e.desig)}</option>`).join('')}</select>
+    <p style="color:var(--mute);font-size:12px;margin-top:8px">The lead is shown on the team list. To make them everyone’s reporting manager, select members below and use <b>Set manager</b>.</p></div>
+  <div class="tools"><button class="btn sm" onclick="openAdd()">+ Add members</button></div>
+  <div class="selbar"><label class="row" style="flex:none;gap:8px;cursor:pointer"><input type="checkbox" class="chk" ${all?'checked':''} ${mem.length?'':'disabled'} onchange="selAll(this.checked)"><span style="font-size:13px;font-weight:600">All</span></label>
+    <span class="cnt">${sel.size} selected</span>
+    <button class="btn sm line" ${none?'disabled':''} onclick="openBulkMgr()">Set manager</button>
+    <button class="btn sm line" ${none?'disabled':''} onclick="openMoveOut()">Move out</button></div>
+  ${mem.length?`<div class="list2">${mem.map(e=>`<div class="card who" style="cursor:default"><input type="checkbox" class="chk" aria-label="Select ${esc(e.name)}" ${sel.has(e.id)?'checked':''} onchange="toggleSel('${e.id}')">
+     <div class="avatar" onclick="openEmp('${e.id}')" style="cursor:pointer">${ini(e.name)}</div>
+     <div class="m" onclick="openEmp('${e.id}')" style="cursor:pointer"><b>${esc(e.name)}${lead&&lead.id===e.id?' <span class="tag admin">Lead</span>':''}</b><small>${esc(e.desig)} · Reports to ${e.mgr?esc(nameOf(e.mgr)):'—'}</small></div>
+     <span class="tag ${e.role}">${e.role}</span></div>`).join('')}</div>`
+   :'<div class="empty">No members yet. Use <b>+ Add members</b> to bring people in.</div>'}`;
+}
+function toggleSel(id){sel.has(id)?sel.delete(id):sel.add(id);render()}
+function selAll(on){const t=teams[curTeam];sel=new Set(on?emps.filter(e=>e.team===t&&e.active).map(e=>e.id):[]);render()}
+function setLead(id){
+  const t=teams[curTeam];
+  if(id)teamLeads[t]=id;else delete teamLeads[t];
+  log('Team lead changed',`${t}: ${id?nameOf(id):'not set'}`);toast(id?`${nameOf(id)} is now lead of ${t}`:'Team lead cleared');render();
+}
+function mgrOptions(excl,pre){
+  return emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!excl.includes(m.id))
+    .map(m=>`<option value="${m.id}" ${m.id===pre?'selected':''}>${esc(m.name)} (${esc(m.team)})</option>`).join('');
+}
+function applyMgr(ids,mgr){
+  let ok=0,skip=[];
+  ids.forEach(id=>{
+    const e=byId(id);
+    if(id===mgr||descendants(id).includes(mgr)){skip.push(e.name);return}
+    e.mgr=mgr;ok++;
+  });
+  return {ok,skip};
+}
+function openAdd(){
+  addSel=new Set();addQ='';
+  const t=teams[curTeam];
+  sheet(`<h2 style="font-size:22px">Add to ${esc(t)}</h2>
+   <div class="search" style="margin-top:12px">${ic('search')}<input class="in" placeholder="Search by name or ID" oninput="addQ=this.value;drawAdd()"></div>
+   <div id="addlist" style="max-height:34vh;overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:0 10px"></div>
+   <label class="f">Reporting manager for these people</label>
+   <select class="in" id="add_mgr"><option value="">Keep current managers</option>${mgrOptions([],'')}</select>
+   <div id="add_err"></div>
+   <button class="btn" id="addbtn" onclick="doAdd()">Add members</button>`);
+  drawAdd();
+}
+function drawAdd(){
+  const t=teams[curTeam],q=addQ.trim().toLowerCase();
+  const list=emps.filter(e=>e.active&&e.team!==t&&(!q||(e.name+' '+e.id).toLowerCase().includes(q)));
+  $('#addlist').innerHTML=list.length?list.map(e=>`<label class="addrow"><input type="checkbox" class="chk" ${addSel.has(e.id)?'checked':''} onchange="this.checked?addSel.add('${e.id}'):addSel.delete('${e.id}');drawAddBtn()"><div class="avatar" style="width:36px;height:36px;font-size:12px">${ini(e.name)}</div><div class="m"><b>${esc(e.name)}</b><small>Now in ${esc(e.team)} · ${esc(e.desig)}</small></div></label>`).join(''):'<div class="empty" style="padding:20px">No one else to add.</div>';
+  drawAddBtn();
+}
+function drawAddBtn(){const b=$('#addbtn');b.textContent=addSel.size?`Add ${addSel.size} member${addSel.size===1?'':'s'}`:'Add members'}
+function doAdd(){
+  const t=teams[curTeam];
+  if(!addSel.size){$('#add_err').innerHTML='<div class="err">Select at least one person.</div>';return}
+  const mgr=$('#add_mgr').value;const ids=[...addSel];
+  ids.forEach(id=>{byId(id).team=t});
+  let note='';
+  if(mgr){const r=applyMgr(ids,mgr);note=` · manager ${nameOf(mgr)}`+(r.skip.length?` (skipped: ${r.skip.join(', ')})`:'')}
+  log('Members added to team',`${t}: ${ids.map(nameOf).join(', ')}${note}`);
+  closeSheet();render();toast(`${ids.length} added to ${t}`);
+}
+function openBulkMgr(){
+  const t=teams[curTeam],ids=[...sel],lead=leadOf(t);
+  const pre=lead&&!ids.includes(lead.id)?lead.id:'';
+  sheet(`<h2 style="font-size:22px">Set manager</h2>
+   <p style="color:var(--mute);font-size:14px;margin-top:6px">For ${ids.length} selected: ${ids.map(i=>esc(nameOf(i))).join(', ')}</p>
+   <label class="f">New reporting manager</label>
+   <select class="in" id="bm_mgr"><option value="">Choose a manager…</option>${mgrOptions(ids,pre)}</select>
+   <p style="color:var(--mute);font-size:12px;margin-top:8px">Only affects new requests. Requests already pending stay with their current approver.</p>
+   <div id="bm_err"></div>
+   <button class="btn" onclick="doBulkMgr()">Apply to ${ids.length}</button>`);
+}
+function doBulkMgr(){
+  const mgr=$('#bm_mgr').value;
+  if(!mgr){$('#bm_err').innerHTML='<div class="err">Choose a manager.</div>';return}
+  const ids=[...sel];const r=applyMgr(ids,mgr);
+  log('Reporting manager changed (bulk)',`${nameOf(mgr)} now manages ${ids.filter(i=>byId(i).mgr===mgr).map(nameOf).join(', ')}`);
+  sel=new Set();closeSheet();render();
+  toast(`${r.ok} now report to ${nameOf(mgr)}${r.skip.length?` · skipped ${r.skip.length}`:''}`);
+}
+function openMoveOut(){
+  const t=teams[curTeam],ids=[...sel],others=teams.filter(x=>x!==t);
+  if(!others.length){toast('Create another team first');return}
+  sheet(`<h2 style="font-size:22px">Move out of ${esc(t)}</h2>
+   <p style="color:var(--mute);font-size:14px;margin-top:6px">Everyone belongs to exactly one team. Moving: ${ids.map(i=>esc(nameOf(i))).join(', ')}</p>
+   <label class="f">Move to team</label>
+   <select class="in" id="mo_team">${others.map(x=>`<option>${esc(x)}</option>`).join('')}</select>
+   <button class="btn" onclick="doMoveOut()">Move ${ids.length}</button>`);
+}
+function doMoveOut(){
+  const t=teams[curTeam],dest=$('#mo_team').value,ids=[...sel];
+  ids.forEach(id=>{byId(id).team=dest});
+  log('Members moved between teams',`${ids.map(nameOf).join(', ')}: ${t} → ${dest}`);
+  sel=new Set();closeSheet();render();toast(`${ids.length} moved to ${dest}`);
+}
+
+/* =============== attendance + CSV =============== */
+const SAMPLE_CSV=`emp_code,date,status,check_in,check_out
+EMP-1042,2026-10-12,present,09:12,18:20
+EMP-1043,2026-10-12,leave,,
+EMP-1021,2026-10-12,wfh,09:30,18:10
+EMP-1022,2026-10-12,late,10:41,18:45
+EMP-1023,2026-10-12,present,09:05,18:30
+EMP-1031,2026-10-12,half_day,09:20,13:30
+EMP-1042,2026-10-09,present,09:15,18:00
+EMP-9999,2026-10-12,present,09:00,18:00
+EMP-1060,2026-13-40,present,09:00,18:00
+EMP-1050,2026-10-12,sleeping,09:00,18:00
+EMP-1032,2026-10-12,present,18:30,09:00
+EMP-1042,2026-10-12,present,09:12,18:20
+EMP-1033,2026-10-12,present,09:00,18:00
+EMP-1060,2026-10-25,present,09:00,18:00
+EMP-1060,2026-10-14,present,09:00,18:00`;
+function parseCSV(text){
+  const lines=text.replace(/^﻿/,'').split(/\r?\n/).filter(l=>l.trim());
+  const head=(lines.shift()||'').split(',').map(h=>h.trim().toLowerCase());
+  return {head,rows:lines.map((l,i)=>({n:i+2,c:l.split(',').map(x=>x.trim())}))};
+}
+function validDate(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const d=P(s);return !isNaN(d)&&iso(d)===s}
+function validTime(s){return /^([01]\d|2[0-3]):[0-5]\d$/.test(s)}
+function analyse(text,fileName){
+  const {head,rows}=parseCSV(text);
+  const need=['emp_code','date','status','check_in','check_out'];
+  const missing=need.filter(h=>!head.includes(h));
+  const res={file:fileName,missing,rows:[],valid:[],errors:[],overwrite:0,total:rows.length};
+  if(missing.length)return res;
+  const idx=Object.fromEntries(need.map(h=>[h,head.indexOf(h)]));
+  const seen=new Set();
+  rows.forEach(({n,c})=>{
+    const r={n,code:(c[idx.emp_code]||'').toUpperCase(),date:c[idx.date]||'',s:(c[idx.status]||'').toLowerCase(),in:c[idx.check_in]||'',out:c[idx.check_out]||''};
+    const errs=[]; const e=byId(r.code);
+    if(!r.code)errs.push('Missing employee ID'); else if(!e)errs.push(`Unknown employee ${r.code}`); else if(!e.active)errs.push(`${r.code} is inactive`);
+    if(!validDate(r.date))errs.push(`Invalid date “${r.date}”`);
+    else{ if(r.date>TODAY)errs.push('Date is in the future'); const dw=P(r.date).getDay(); if(dw===0||dw===6)errs.push('Date falls on a weekend'); }
+    if(!STATUSES.includes(r.s))errs.push(`Unknown status “${r.s}”`);
+    if(r.in&&!validTime(r.in))errs.push(`Bad check-in “${r.in}”`);
+    if(r.out&&!validTime(r.out))errs.push(`Bad check-out “${r.out}”`);
+    if(validTime(r.in)&&validTime(r.out)&&r.out<=r.in)errs.push('Check-out is not after check-in');
+    if(['present','late','half_day'].includes(r.s)&&!r.in)errs.push('Check-in required for this status');
+    const key=r.code+'|'+r.date;
+    if(!errs.length){ if(seen.has(key))errs.push('Duplicate of an earlier row in this file'); seen.add(key); }
+    if(errs.length){res.errors.push({...r,msg:errs.join('; ')})}
+    else{ r.over=!!att[key]; if(r.over)res.overwrite++; res.valid.push(r) }
+  });
+  return res;
+}
+function loadText(text,name){pend=analyse(text,name);render();$('#view').scrollTo({top:0})}
+function pickFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>loadText(String(rd.result),f.name);rd.readAsText(f)}
+function confirmImport(){
+  if(!pend||!pend.valid.length)return;
+  const id='IMP-'+String(Math.max(...imports.map(i=>+i.id.split('-')[1]))+1).padStart(4,'0');
+  pend.valid.forEach(r=>{att[r.code+'|'+r.date]={s:r.s,in:r.in,out:r.out,batch:id}});
+  imports.unshift({id,file:pend.file,by:ADMIN.name,at:nowStamp(),total:pend.total,valid:pend.valid.length,errors:pend.errors.length,overwritten:pend.overwrite});
+  log(`Attendance import ${id}`,`${pend.file} · ${pend.valid.length} saved, ${pend.errors.length} skipped`);
+  toast(`${id}: ${pend.valid.length} records saved`); pend=null; render();
+}
+function vAttendance(){
+  const p=pend;
+  let preview='';
+  if(p){
+    if(p.missing.length)preview=`<div class="card"><div class="err" style="margin-top:0"><b>Missing columns:</b> ${p.missing.join(', ')}<br>Expected: emp_code, date, status, check_in, check_out</div><button class="btn line sm" style="margin-top:12px" onclick="pend=null;render()">Choose another file</button></div>`;
+    else preview=`<div class="card"><b>${esc(p.file)}</b><div class="chips">
+      <div class="chipv t">Rows<b>${p.total}</b></div><div class="chipv v">Valid<b>${p.valid.length}</b></div>
+      <div class="chipv e">Errors<b>${p.errors.length}</b></div><div class="chipv w">Overwrites<b>${p.overwrite}</b></div></div>
+      ${p.errors.length?`<div class="sec" style="margin:10px 2px 8px"><h2 style="font-size:16px">Row errors</h2></div><div class="tablewrap" style="white-space:normal">${p.errors.map(e=>`<div class="errline"><b>Row ${e.n}</b><span>${esc(e.msg)}</span></div>`).join('')}</div>`:''}
+      ${p.valid.length?`<div class="sec" style="margin:14px 2px 8px"><h2 style="font-size:16px">Valid records</h2></div><div class="tablewrap"><table><tr><th>Row</th><th>Employee</th><th>Date</th><th>Status</th><th>In</th><th>Out</th></tr>${p.valid.slice(0,10).map(r=>`<tr><td>${r.n}</td><td>${esc(nameOf(r.code))}</td><td>${fmt(r.date)}</td><td>${SNAME[r.s]}${r.over?' <span class="tag off">replaces</span>':''}</td><td>${r.in||'—'}</td><td>${r.out||'—'}</td></tr>`).join('')}</table></div>${p.valid.length>10?`<small style="color:var(--mute)">+ ${p.valid.length-10} more valid rows</small>`:''}`:''}
+      <div class="row" style="margin-top:6px"><button class="btn line" onclick="pend=null;render()">Cancel</button><button class="btn" ${p.valid.length?'':'disabled style="opacity:.5"'} onclick="confirmImport()">Import ${p.valid.length} record${p.valid.length===1?'':'s'}</button></div>
+      ${p.errors.length?`<p style="color:var(--mute);font-size:12px;margin-top:10px">Rows with errors are skipped. Fix them in the CSV and upload again.</p>`:''}</div>`;
+  }
+  const dayRows=emps.filter(e=>e.active).map(e=>[e,att[e.id+'|'+browseDate]]);
+  const counts={};dayRows.forEach(([e,a])=>{if(a)counts[a.s]=(counts[a.s]||0)+1});
+  return `<header class="top"><div class="t"><small>HR uploads · employees see their own</small><h1>Attendance</h1></div></header>
+  <div class="cols"><div>
+   ${p?preview:`<div class="drop" id="drop" onclick="$('#file').click()" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();pickFile(event.dataTransfer.files[0])">${ic('up')}<b>Upload attendance CSV</b><small>Tap to choose a file, or drop it here</small></div>
+   <input type="file" id="file" accept=".csv,text/csv" hidden onchange="pickFile(this.files[0]);this.value=''">
+   <div class="tools" style="margin-top:12px"><button class="btn sm line" onclick="loadText(SAMPLE_CSV,'sample_attendance.csv')">Try sample file</button><button class="btn sm line" onclick="download('attendance_template.csv','emp_code,date,status,check_in,check_out\\nEMP-1042,2026-10-09,present,09:10,18:05\\n')">Download template</button></div>`}
+   <div class="sec"><h2>Browse a day</h2></div>
+   <input class="in" type="date" value="${browseDate}" max="${TODAY}" onchange="browseDate=this.value||browseDate;render()">
+   <div class="stats" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">${['present','late','wfh','leave','absent','half_day'].map(s=>`<div class="stat"><b style="color:${SCOL[s]}">${counts[s]||0}</b><small>${SNAME[s]}</small></div>`).join('')}</div>
+   <div class="tablewrap"><table><tr><th>Employee</th><th>Status</th><th>In</th><th>Out</th></tr>${dayRows.map(([e,a])=>`<tr><td>${esc(e.name)}</td><td>${a?`<span style="color:${SCOL[a.s]};font-weight:700">${SNAME[a.s]}</span>`:'<span style="color:var(--mute)">No record</span>'}</td><td>${a?.in||'—'}</td><td>${a?.out||'—'}</td></tr>`).join('')}</table></div>
+  </div><div>
+   <div class="sec" style="margin-top:6px"><h2>Import history</h2></div>
+   ${imports.map(i=>`<div class="card"><div class="row"><b style="flex:1;font-size:14px">${esc(i.id)}</b><span class="pill Approved">Saved</span></div><div style="font-size:13px;margin-top:4px">${esc(i.file)}</div><small style="color:var(--mute)">${esc(i.by)} · ${esc(i.at)}<br>${i.valid} saved · ${i.errors} skipped${i.overwritten?` · ${i.overwritten} replaced`:''}</small></div>`).join('')}
+  </div></div>`;
+}
+
+/* =============== holidays =============== */
+function vHolidays(){
+  const sorted=[...holidays].sort((a,b)=>a.d.localeCompare(b.d));
+  let last='',html='';
+  sorted.forEach(h=>{
+    const m=fmt(h.d,{month:'long',year:'numeric'});
+    if(m!==last){html+=`<div class="hmonth">${m}</div>`;last=m}
+    const d=P(h.d);
+    html+=`<div class="card hol" style="cursor:pointer" onclick="openHol('${h.d}')"><div class="d"><b>${d.getDate()}</b><small>${d.toLocaleDateString('en-GB',{month:'short'})}</small></div><div class="m" style="flex:1"><b>${esc(h.n)}</b><small>${d.toLocaleDateString('en-GB',{weekday:'long'})}${h.d<TODAY?' · past':''}</small></div>${ic('right')}</div>`;
+  });
+  return `<header class="top"><div class="t"><small>${holidays.length} in 2026</small><h1>Holidays</h1></div><button class="btn sm hdr-actions" onclick="openHol(null)">+ Add holiday</button></header>
+  <div class="tools"><button class="btn sm" onclick="openHol(null)">+ Add holiday</button></div>${html}`;
+}
+function openHol(d){
+  const h=d?holidays.find(x=>x.d===d):{d:'',n:''};
+  sheet(`<h2 style="font-size:22px">${d?'Edit holiday':'Add holiday'}</h2>
+   <label class="f">Date</label><input class="in" type="date" id="h_d" value="${h.d}">
+   <label class="f">Name</label><input class="in" id="h_n" value="${esc(h.n)}" placeholder="e.g. Founders’ Day">
+   <p style="color:var(--mute);font-size:12px;margin-top:10px">Holidays aren’t counted as leave days when employees apply.</p>
+   <div id="h_err"></div>
+   <button class="btn" onclick="saveHol(${d?`'${d}'`:'null'})">${d?'Save':'Add holiday'}</button>
+   ${d?`<button class="btn ghost" onclick="delHol('${d}')">Delete holiday</button>`:''}`);
+}
+function saveHol(old){
+  const d=$('#h_d').value,n=$('#h_n').value.trim();
+  const fail=m=>{$('#h_err').innerHTML=`<div class="err">${m}</div>`};
+  if(!d||!n)return fail('Date and name are required.');
+  if(holidays.some(h=>h.d===d&&h.d!==old))return fail(`${fmt(d)} already has a holiday: ${holidays.find(h=>h.d===d).n}.`);
+  if(old){const h=holidays.find(x=>x.d===old);log('Holiday updated',`${h.n} → ${n} · ${fmt(d)}`);h.d=d;h.n=n}
+  else{holidays.push({d,n});log('Holiday added',`${n} · ${fmt(d,{day:'numeric',month:'short',year:'numeric'})}`)}
+  closeSheet();render();toast(old?'Holiday updated':'Holiday added');
+}
+function delHol(d){const h=holidays.find(x=>x.d===d);if(!confirm(`Delete “${h.n}”? Leave day counts for new requests will include this date.`))return;holidays=holidays.filter(x=>x.d!==d);log('Holiday deleted',`${h.n} · ${fmt(d)}`);closeSheet();render();toast('Holiday deleted')}
+
+/* =============== organization =============== */
+function node(e,depth){
+  const kids=emps.filter(x=>x.mgr===e.id&&x.active);
+  const total=descendants(e.id).filter(i=>byId(i).active).length;
+  const head=`<div class="avatar">${ini(e.name)}</div><div class="m"><b>${esc(e.name)}</b><small>${esc(e.desig)} · ${esc(e.team)}</small></div>${total?`<span class="tag employee">${total}</span>`:''}`;
+  if(!kids.length)return `<div class="leaf" onclick="openEmp('${e.id}')">${head}</div>`;
+  return `<details ${depth<2?'open':''}><summary>${head}</summary><div class="lvl">${kids.map(k=>node(k,depth+1)).join('')}</div></details>`;
+}
+function vOrg(){
+  const roots=emps.filter(e=>e.active&&!e.mgr);
+  return `<header class="top"><div class="t"><small>Reporting hierarchy</small><h1>Organization</h1></div></header>
+  <div class="card tree">${roots.map(r=>node(r,0)).join('')}</div>
+  <p style="color:var(--mute);font-size:12px;margin:0 2px">Numbers show total people under each leader. Inactive employees are hidden.</p>`;
+}
+
+/* =============== reports =============== */
+function monthStats(list){
+  const c={present:0,late:0,absent:0,half_day:0,wfh:0,leave:0};
+  list.forEach(e=>Object.keys(att).filter(k=>k.startsWith(e.id+'|2026-10')).forEach(k=>{c[att[k].s]++}));
+  const t=Object.values(c).reduce((a,b)=>a+b,0);
+  return {c,t,rate:t?Math.round((c.present+c.late+c.wfh+c.half_day)/t*100):0};
+}
+function vReports(){
+  const act=emps.filter(e=>e.active);
+  const all=monthStats(act);
+  const list=act.filter(e=>repTeam==='All'||e.team===repTeam);
+  return `<header class="top"><div class="t"><small>October 2026 · up to 9 Oct</small><h1>Reports</h1></div><button class="btn sm hdr-actions" onclick="exportReport()">Export CSV</button></header>
+  <div class="kpis"><div class="kpi g"><small>Attendance rate</small><b>${all.rate}%</b></div>
+   <div class="kpi"><small>Absent days</small><b style="color:var(--red)">${all.c.absent}</b></div>
+   <div class="kpi"><small>Leave days</small><b style="color:var(--brand)">${all.c.leave}</b></div>
+   <div class="kpi"><small>WFH days</small><b style="color:var(--plum)">${all.c.wfh}</b></div></div>
+  <div class="cols"><div>
+   <div class="sec" style="margin-top:6px"><h2>By team</h2></div>
+   ${teams.map(t=>{const m=act.filter(e=>e.team===t);const s=monthStats(m);if(!s.t)return '';
+     return `<div class="card"><div class="row"><b style="flex:1">${esc(t)}</b><b style="color:var(--brand)">${s.rate}%</b></div>
+     <div class="bar" style="margin:10px 0 8px">${['present','late','wfh','half_day','leave','absent'].map(k=>`<i style="width:${s.c[k]/s.t*100}%;background:${SCOL[k]}"></i>`).join('')}</div>
+     <small style="color:var(--mute)">${m.length} people · ${s.c.absent} absent · ${s.c.late} late · ${s.c.leave} leave · ${s.c.wfh} WFH</small></div>`}).join('')}
+   <div class="legend"><span style="--c:var(--green)">Present</span><span style="--c:var(--amber)">Late</span><span style="--c:var(--plum)">WFH</span><span style="--c:var(--blue)">Half day</span><span style="--c:var(--brand)">Leave</span><span style="--c:var(--red)">Absent</span></div>
+  </div><div>
+   <div class="sec" style="margin-top:6px"><h2>Employees</h2></div>
+   <div class="tools"><select class="in" style="flex:1" onchange="repTeam=this.value;render()"><option value="All">All teams</option>${teams.map(t=>`<option ${repTeam===t?'selected':''}>${esc(t)}</option>`).join('')}</select><button class="btn sm line" onclick="exportReport()">Export CSV</button></div>
+   <div class="tablewrap"><table><tr><th>Employee</th><th>Present</th><th>Late</th><th>WFH</th><th>Leave</th><th>Absent</th></tr>
+   ${list.map(e=>{const s=monthStats([e]);return `<tr><td>${esc(e.name)}</td><td>${s.c.present}</td><td>${s.c.late}</td><td>${s.c.wfh}</td><td>${s.c.leave}</td><td style="${s.c.absent?'color:var(--red);font-weight:700':''}">${s.c.absent}</td></tr>`}).join('')}</table></div>
+  </div></div>`;
+}
+function exportReport(){
+  const act=emps.filter(e=>e.active&&(repTeam==='All'||e.team===repTeam));
+  const rows=act.map(e=>{const s=monthStats([e]);return [e.id,e.name,e.team,s.c.present,s.c.late,s.c.wfh,s.c.half_day,s.c.leave,s.c.absent].join(',')});
+  download('attendance_summary_oct_2026.csv','emp_code,name,team,present,late,wfh,half_day,leave,absent\n'+rows.join('\n'));
+  log('Report exported',`Attendance summary · ${repTeam}`);toast('Report downloaded');
+}
+
+/* =============== more (mobile) + shell =============== */
+function openMore(){
+  const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['reports','Reports','chart'],['activity','Activity log','log']];
+  sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>${it.map(([k,l,i])=>`<div class="more" onclick="go('${k}')">${ic(i)}<span>${l}</span>${ic('right')}</div>`).join('')}
+   <div class="more" style="color:var(--red);border:none" onclick="toast('Signed out (demo)');closeSheet()">${ic('out')}<span>Sign out</span></div>`);
+}
+const VIEWS={dashboard:vDashboard,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
+function render(){
+  const st=$('#view').scrollTop;
+  const cur=tab==='team'?'teams':tab;
+  $('#view').innerHTML='<div class="page'+(['org','activity','team'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
+  $('#view').scrollTop=st;
+  if(tab==='employees')drawEmpList();
+  const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
+  $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'
+   +items.map(([k,l,i,c])=>`<button class="${cur===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')
+   +`<button class="mOnly ${['teams','org','reports','activity'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
+   +`<button class="sidelink" onclick="toast('Signed out (demo)')">${ic('out')}Sign out</button>`;
+}
+render();
+</script>
+</body>
+</html>
