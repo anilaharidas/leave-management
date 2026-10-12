@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b4bdb">
+<title>LeaveDesk – Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg:#f4f2fb; --card:#fff; --ink:#1e1b33; --mute:#716d8c; --line:#e7e3f4;
+  --brand:#5b4bdb; --brand-d:#4333b8; --brand-l:#ece9fd; --grad:linear-gradient(135deg,#5b4bdb 0%,#8a4fe0 55%,#d0408f 100%);
+  --amber:#b86e00; --amber-l:#fff0d1; --green:#13875a; --green-l:#dcf5e8;
+  --red:#d6405a; --red-l:#fde6ea; --blue:#0e8fa3; --blue-l:#dff3f6; --plum:#c0398f; --plum-l:#fae4f2;
+  --r:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12101f;--card:#1c1930;--ink:#f0eefc;--mute:#a09cc0;--line:#2d2947;--brand:#8b7dff;--brand-d:#b4a9ff;--brand-l:#2a2550;
+  --amber-l:#3b2e12;--green-l:#143a2a;--red-l:#3d1b25;--blue-l:#12333a;--plum-l:#3a1b33;--amber:#f0b04a;--green:#52d49a;--red:#ff7b91;--blue:#4fc8dc;--plum:#ee7cc4}
+}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;min-width:0}
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+button,input,textarea{max-width:100%}
+.m b,.hol .m b{overflow-wrap:anywhere}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.phone{width:100%;height:100vh;height:100dvh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
+#view{flex:1;overflow-y:auto;padding:0 16px 110px;scroll-behavior:smooth}
+#view>.page{max-width:1080px;margin:0 auto}
+.narrow{max-width:620px;margin:0 auto}
+.cols{display:block}
+.list2{display:block}
+.brand,.sidelink{display:none}
+.toast{max-width:420px;margin:0 auto}
+#view::-webkit-scrollbar{display:none}
+h1,h2,.serif{font-family:Fraunces,serif;font-weight:600}
+header.top{display:flex;align-items:center;gap:12px;padding:20px 0 14px}
+header.top .t{flex:1}
+header.top .t small{color:var(--mute);font-size:13px;display:block}
+header.top .t h1{font-size:24px;line-height:1.15}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;border:none;cursor:pointer;flex:none}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 10px}
+.sec h2{font-size:18px}.sec a{font-size:13px;color:var(--brand);font-weight:600;cursor:pointer}
+.hero{background:var(--grad);color:#fff;border:none;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero small{opacity:.8;font-size:13px}
+.hero .big{font-family:Fraunces,serif;font-size:40px;line-height:1.1;margin:4px 0 12px}
+.hero .row{display:flex;gap:8px}
+.hero .chip{background:rgba(255,255,255,.16);border-radius:12px;padding:8px 12px;font-size:13px;flex:1}
+.hero .chip b{display:block;font-size:17px}
+.balances{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bal{text-align:center;padding:14px 6px}
+.ring{width:62px;height:62px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.ring span{width:48px;height:48px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:700;font-size:16px}
+.bal small{color:var(--mute);font-size:12px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qa{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:14px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:8px}
+.qa .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center}
+.qa b{font-size:15px}.qa small{color:var(--mute);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.pill.Pending{background:var(--amber-l);color:var(--amber)}
+.pill.Approved{background:var(--green-l);color:var(--green)}
+.pill.Rejected{background:var(--red-l);color:var(--red)}
+.pill.Cancelled{background:var(--line);color:var(--mute)}
+.req{display:flex;gap:12px;align-items:center;cursor:pointer;padding:14px}
+.req .ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:none}
+.req .m{flex:1;min-width:0}.req .m b{display:block;font-size:15px}.req .m small{color:var(--mute);font-size:13px}
+.hol{display:flex;gap:12px;align-items:center;padding:12px 14px}
+.hol .d{width:46px;text-align:center;border-radius:12px;background:var(--brand-l);color:var(--brand-d);padding:6px 0;flex:none}
+.hol .d b{display:block;font-size:18px;line-height:1}.hol .d small{font-size:11px;text-transform:uppercase;font-weight:600}
+.hol .m b{display:block;font-size:14px}.hol .m small{color:var(--mute);font-size:12px}
+/* nav */
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 6px calc(10px + env(safe-area-inset-bottom));z-index:5}
+#view{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.qa,.type,.fl,.menu,.req{min-height:44px}
+nav button{flex:1;border:none;background:none;color:var(--mute);font:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+nav button.on{color:var(--brand)}
+nav button.apply .fab{width:50px;height:50px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;margin-top:-26px;box-shadow:0 8px 20px rgba(91,75,219,.45);border:4px solid var(--bg)}
+nav button.apply{color:var(--brand)}
+svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* forms */
+.seg{display:flex;background:var(--line);border-radius:14px;padding:4px;margin-bottom:16px}
+.seg button{flex:1;border:none;background:none;padding:10px;border-radius:11px;font:inherit;font-weight:600;color:var(--mute);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+label.f{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+.in{width:100%;padding:13px 14px;border-radius:13px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px}
+.in:focus{outline:none;border-color:var(--brand)}
+textarea.in{resize:none;height:90px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type{border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;font:inherit;color:var(--ink)}
+.type b{display:block;font-size:13px}.type small{color:var(--mute);font-size:11px}
+.type.on{border-color:var(--brand);background:var(--brand-l)}
+.toggle{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:12px 14px;border:1.5px solid var(--line);border-radius:13px;background:var(--card)}
+.sw{width:46px;height:26px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;border:none;transition:.2s}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.sw.on{background:var(--grad)}.sw.on:after{left:23px}
+.mgr{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:13px;background:var(--brand-l);margin-top:14px;font-size:13px}
+.mgr .avatar{width:34px;height:34px;font-size:12px}
+.sum{margin-top:14px;padding:14px;border-radius:13px;border:1.5px dashed var(--line);font-size:14px}
+.sum b{font-size:18px}
+.err{background:var(--red-l);color:var(--red);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px}
+.btn{width:100%;padding:15px;border-radius:15px;border:none;background:var(--grad);box-shadow:0 8px 18px rgba(91,75,219,.3);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:18px}
+.btn:active{filter:brightness(.92)}
+.btn.ghost{background:none;box-shadow:none;color:var(--red);border:1.5px solid var(--line)}
+/* chips filter */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.filters::-webkit-scrollbar{display:none}
+.fl{border:1.5px solid var(--line);background:var(--card);padding:8px 14px;border-radius:99px;font:inherit;font-size:13px;font-weight:600;color:var(--mute);cursor:pointer;white-space:nowrap}
+.fl.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* calendar */
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.calhead b{font-family:Fraunces,serif;font-size:19px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.grid .dow{font-size:11px;color:var(--mute);font-weight:600;padding:4px 0}
+.cell{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;font-size:14px;position:relative;cursor:pointer;border:none;background:none;color:var(--ink);font-family:inherit}
+.cell.we{color:var(--mute)}
+.cell.today{outline:2px solid var(--brand);outline-offset:-2px;font-weight:700}
+.cell.hol{background:var(--brand-l);color:var(--brand-d);font-weight:700}
+.cell.sel{background:var(--brand);color:#fff}
+.cell i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
+.legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
+.stat b{display:block;font-size:20px;font-family:Fraunces,serif}.stat small{font-size:11px;color:var(--mute)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end;animation:fade .2s}
+.sheet{background:var(--bg);width:100%;border-radius:26px 26px 0 0;padding:10px 18px 28px;max-height:88%;overflow-y:auto;animation:up .25s}
+.sheet .grab{width:40px;height:4px;background:var(--line);border-radius:9px;margin:0 auto 14px}
+@keyframes up{from{transform:translateY(100%)}}@keyframes fade{from{opacity:0}}
+.tl{position:relative;padding-left:26px;margin-top:6px}
+.tl:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tl div{position:relative;margin-bottom:16px;font-size:14px}
+.tl div:before{content:"";position:absolute;left:-23px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--c,var(--line));border:2px solid var(--bg)}
+.tl small{display:block;color:var(--mute);font-size:12px}
+.kv{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border:none}.kv span:first-child{color:var(--mute)}
+.toast{position:fixed;top:18px;left:16px;right:16px;background:var(--ink);color:var(--bg);padding:13px 16px;border-radius:14px;font-size:14px;font-weight:500;z-index:20;animation:fade .2s}
+.empty{text-align:center;color:var(--mute);padding:40px 10px;font-size:14px}
+.prof{text-align:center;padding:10px 0 4px}
+.prof .avatar{width:84px;height:84px;font-size:28px;margin:0 auto 10px}
+.prof h1{font-size:24px}.prof p{color:var(--mute);font-size:14px}
+.menu{display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:15px;border-bottom:1px solid var(--line);cursor:pointer}
+.menu:last-child{border:none}.menu span{flex:1}
+
+/* tablet / desktop */
+@media(min-width:700px){
+  #view{padding:0 32px 60px}
+  .list2{display:grid;grid-template-columns:1fr 1fr;column-gap:14px}
+  .sheet{max-width:520px;margin:0 auto}
+}
+@media(min-width:900px){
+  .phone{flex-direction:row}
+  #view{padding:0 44px 60px}
+  header.top{padding-top:32px}
+  header.top .t h1{font-size:30px}
+  nav{position:static;flex-direction:column;justify-content:flex-start;width:230px;flex:none;border-top:none;border-right:1px solid var(--line);padding:26px 14px;gap:4px;order:-1}
+  nav button{flex:none;flex-direction:row;gap:12px;font-size:15px;padding:12px 14px;border-radius:13px;justify-content:flex-start}
+  nav button:hover{background:var(--brand-l)}
+  nav button.on{background:var(--brand-l)}
+  nav button.apply{order:-1;background:var(--grad);color:#fff;margin-bottom:14px;justify-content:center}
+  nav button.apply:hover{filter:brightness(.95)}
+  nav button.apply .fab{width:auto;height:auto;margin:0;background:none;box-shadow:none;border:none}
+  .brand{display:flex;align-items:center;gap:10px;font-family:Fraunces,serif;font-size:20px;padding:0 14px 22px;order:-2}
+  .brand i{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
+  .sidelink{display:flex;margin-top:auto}
+  .cols{display:grid;grid-template-columns:3fr 2fr;gap:28px;align-items:start}
+  .hero .big{font-size:48px}
+  .scrim{align-items:center}.sheet{border-radius:26px;padding-top:22px}.sheet .grab{display:none}
+  .toast{left:auto;right:24px;top:24px;width:360px}
+}
+
+/* very small phones */
+@media(max-width:379px){
+  #view{padding-left:12px;padding-right:12px}
+  header.top .t h1{font-size:21px}
+  .hero .big{font-size:34px}.hero .row{flex-direction:column}
+  .balances{gap:6px}.bal{padding:12px 4px}.ring{width:54px;height:54px}.ring span{width:42px;height:42px;font-size:14px}
+  .types{gap:6px}.type{padding:10px 4px}
+  .two{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .cell{font-size:12px;border-radius:8px}.grid{gap:2px}
+  .req{gap:10px;padding:12px}.req .ic{width:38px;height:38px}
+  nav button{font-size:10px}
+  .card{padding:14px}
+}
+/* phones in landscape / short screens */
+@media(max-height:480px) and (max-width:899px){
+  nav{padding-top:4px;padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+  nav button{flex-direction:row;justify-content:center;gap:6px}
+  nav button.apply .fab{width:38px;height:38px;margin-top:-14px}
+  #view{padding-bottom:70px}.cell{aspect-ratio:auto;height:34px}
+  .sheet{max-height:94%}
+}
+/* large screens */
+@media(min-width:1280px){
+  nav{width:260px}#view{padding:0 64px 60px}#view>.page{max-width:1180px}
+}
+@media(min-width:1800px){html{font-size:18px}#view>.page{max-width:1360px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* ---------- manager additions ---------- */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(min-width:900px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.kpi small{color:var(--mute);font-size:12px;display:block}
+.kpi b{font-family:Fraunces,serif;font-size:30px;line-height:1.2}
+.kpi.g{background:var(--grad);border:none;color:#fff}.kpi.g small{color:rgba(255,255,255,.8)}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.tag.urgent{background:var(--red-l);color:var(--red)}.tag.soon{background:var(--amber-l);color:var(--amber)}.tag.ok{background:var(--green-l);color:var(--green)}.tag.info{background:var(--brand-l);color:var(--brand-d)}
+.who{display:flex;gap:12px;align-items:center;padding:12px 14px;cursor:pointer}
+.who .avatar{width:42px;height:42px;font-size:14px;flex:none}
+.who .m{flex:1;min-width:0}.who .m b{display:block;font-size:15px}.who .m small{color:var(--mute);font-size:13px;display:block}
+.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}
+.btn.sm{width:auto;padding:10px 16px;font-size:14px;margin-top:0;border-radius:12px}
+.btn.line{background:none;box-shadow:none;color:var(--brand);border:1.5px solid var(--line)}
+.btn.ok{background:var(--green);box-shadow:none}
+.btn.no{background:var(--red);box-shadow:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);background:var(--bg)}
+tr:last-child td{border-bottom:none}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--grad)}
+.more{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);font-size:16px;cursor:pointer}
+.more span{flex:1}
+.dOnly{display:none!important}.mOnly{display:flex}
+@media(min-width:900px){.dOnly{display:flex!important}.mOnly{display:none!important}}
+.hdr-actions{display:none}@media(min-width:900px){.hdr-actions{display:block}}
+.badge{background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle}
+nav button{position:relative}
+nav button .nb{position:absolute;top:0;left:calc(50% + 6px);background:var(--red);color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;min-width:18px;text-align:center}
+@media(min-width:900px){nav button .nb{position:static;margin-left:auto}}
+.gate{min-height:100%;display:grid;place-items:center;padding:20px}
+.gate .card{width:100%;max-width:400px;padding:24px}
+.gate .logo{width:48px;height:48px;border-radius:14px;background:var(--grad);color:#fff;display:grid;place-items:center;font-family:Fraunces,serif;font-size:22px;margin-bottom:14px}
+.lock{display:flex;gap:10px;align-items:center;padding:11px 13px;border-radius:12px;background:var(--brand-l);color:var(--brand-d);font-size:13px;margin:14px 0 0}
+.lock svg{flex:none;width:20px;height:20px}
+.quick-r{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.quick-r button{border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:99px;font:inherit;font-size:13px;cursor:pointer}
+.quick-r button:hover{border-color:var(--brand)}
+.warn{background:var(--amber-l);color:var(--amber);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:12px}
+.good{background:var(--green-l);color:var(--green);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:12px}
+.dayc{display:flex;gap:2px;position:absolute;bottom:4px}
+.dayc i{width:5px;height:5px;border-radius:50%;background:var(--brand)}
+.dayc i.p{background:var(--amber)}.dayc i.w{background:var(--plum)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div id="view"></div>
+  <nav id="nav"></nav>
+  <div id="overlay"></div>
+</div>
+
+<script>
+/* =============== data =============== */
+const TODAY='2026-10-12';
+const MANAGERS={
+  'EMP-1010':{id:'EMP-1010',name:'Arjun Mehta',desig:'Design Lead',team:'Design',email:'arjun.mehta@company.com'},
+  'EMP-1020':{id:'EMP-1020',name:'Kavya Menon',desig:'Engineering Manager',team:'Engineering',email:'kavya.menon@company.com'},
+};
+const TOTALS={annual:18,sick:10,casual:8};
+const TLABEL={annual:'Annual',sick:'Sick',casual:'Casual'};
+const people=[
+ {id:'EMP-1042',name:'Priya Nair',desig:'Product Designer',team:'Design',mgr:'EMP-1010',used:{annual:3,sick:1,casual:0}},
+ {id:'EMP-1043',name:'Rohan Das',desig:'UI Designer',team:'Design',mgr:'EMP-1010',used:{annual:6,sick:2,casual:1}},
+ {id:'EMP-1044',name:'Aditi Rao',desig:'UX Researcher',team:'Design',mgr:'EMP-1010',used:{annual:4,sick:0,casual:2}},
+ {id:'EMP-1045',name:'Kabir Shah',desig:'Visual Designer',team:'Design',mgr:'EMP-1010',used:{annual:17,sick:3,casual:4}},
+ {id:'EMP-1021',name:'Sanjay Pillai',desig:'Senior Engineer',team:'Engineering',mgr:'EMP-1020',used:{annual:5,sick:1,casual:0}},
+ {id:'EMP-1022',name:'Neha Kapoor',desig:'Software Engineer',team:'Engineering',mgr:'EMP-1020',used:{annual:2,sick:0,casual:1}},
+ {id:'EMP-1023',name:'Imran Sheikh',desig:'QA Engineer',team:'Engineering',mgr:'EMP-1020',used:{annual:8,sick:2,casual:3}},
+];
+const holidays=[
+ ['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']
+].map(([d,n])=>({d,n}));
+const holMap=Object.fromEntries(holidays.map(h=>[h.d,h.n]));
+let reqs=[
+ {no:'LV-2026-0212',emp:'EMP-1045',appr:'EMP-1010',kind:'leave',type:'sick',from:'2026-10-12',to:'2026-10-12',half:false,days:1,reason:'Fever, visiting the doctor this morning.',status:'Pending',created:'2026-10-12 08:02',hist:[['Submitted','2026-10-12 08:02']]},
+ {no:'LV-2026-0187',emp:'EMP-1042',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-14',to:'2026-10-16',half:false,days:3,reason:'Family function out of town.',status:'Pending',created:'2026-10-08 10:12',hist:[['Submitted','2026-10-08 10:12']]},
+ {no:'LV-2026-0213',emp:'EMP-1045',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-14',to:'2026-10-15',half:false,days:2,reason:'Short trip with family.',status:'Pending',created:'2026-10-09 18:30',hist:[['Submitted','2026-10-09 18:30']]},
+ {no:'WFH-2026-0125',emp:'EMP-1043',appr:'EMP-1010',kind:'wfh',from:'2026-10-14',to:'2026-10-14',days:1,reason:'Internet installation at home.',status:'Pending',created:'2026-10-09 12:44',hist:[['Submitted','2026-10-09 12:44']]},
+ {no:'LV-2026-0211',emp:'EMP-1044',appr:'EMP-1010',kind:'leave',type:'casual',from:'2026-10-15',to:'2026-10-15',half:true,days:0.5,reason:'Bank work in the afternoon.',status:'Pending',created:'2026-10-10 09:20',hist:[['Submitted','2026-10-10 09:20']]},
+ {no:'LV-2026-0201',emp:'EMP-1043',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-12',to:'2026-10-13',half:false,days:2,reason:'Personal work.',status:'Approved',created:'2026-10-06 15:00',hist:[['Submitted','2026-10-06 15:00'],['Approved by Arjun Mehta','2026-10-06 17:10']]},
+ {no:'WFH-2026-0112',emp:'EMP-1042',appr:'EMP-1010',kind:'wfh',from:'2026-10-12',to:'2026-10-12',days:1,reason:'Plumber visit at home.',status:'Approved',created:'2026-10-05 09:40',hist:[['Submitted','2026-10-05 09:40'],['Approved by Arjun Mehta','2026-10-05 11:02']]},
+ {no:'LV-2026-0190',emp:'EMP-1044',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-26',to:'2026-10-30',half:false,days:5,reason:'Vacation.',status:'Approved',created:'2026-09-30 11:00',hist:[['Submitted','2026-09-30 11:00'],['Approved by Arjun Mehta','2026-10-01 09:30']]},
+ {no:'LV-2026-0139',emp:'EMP-1042',appr:'EMP-1010',kind:'leave',type:'casual',from:'2026-08-28',to:'2026-08-28',half:true,days:0.5,reason:'Bank work.',status:'Rejected',rej:'Sprint demo scheduled that afternoon. Please pick another day.',created:'2026-08-26 16:20',hist:[['Submitted','2026-08-26 16:20'],['Rejected by Arjun Mehta','2026-08-27 09:15']]},
+ {no:'LV-2026-0164',emp:'EMP-1042',appr:'EMP-1010',kind:'leave',type:'sick',from:'2026-09-22',to:'2026-09-22',half:false,days:1,reason:'Fever.',status:'Approved',created:'2026-09-22 08:05',hist:[['Submitted','2026-09-22 08:05'],['Approved by Arjun Mehta','2026-09-22 08:41']]},
+ {no:'LV-2026-0210',emp:'EMP-1022',appr:'EMP-1020',kind:'leave',type:'annual',from:'2026-10-19',to:'2026-10-20',half:false,days:1,reason:'Long weekend plan.',status:'Pending',created:'2026-10-10 14:05',hist:[['Submitted','2026-10-10 14:05']]},
+];
+
+/* =============== helpers =============== */
+const $=s=>document.querySelector(s);
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const P=s=>new Date(s+'T00:00');
+const fmt=(s,o={day:'numeric',month:'short'})=>P(s.slice(0,10)).toLocaleDateString('en-GB',o);
+const range=r=>r.from===r.to?fmt(r.from):`${fmt(r.from)} – ${fmt(r.to)}`;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ini=n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const person=id=>people.find(p=>p.id===id);
+const nowStamp=()=>TODAY+' '+new Date().toTimeString().slice(0,5);
+const daysBetween=(a,b)=>Math.round((P(b)-P(a))/864e5);
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('.phone').appendChild(t);setTimeout(()=>t.remove(),3000)}
+function closeSheet(){$('#overlay').innerHTML=''}
+function sheet(html){$('#overlay').innerHTML=`<div class="scrim" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="grab"></div>${html}</div></div>`}
+const ICON={
+ grid:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
+ check:'<circle cx="12" cy="12" r="9"/><path d="M8 12.500l2.700 2.700L16 9.500"/>',
+ cal:'<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/>',
+ users:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M16 4a4 4 0 010 8M22 21c0-3-2-5-4-5.500"/>',
+ more:'<circle cx="5" cy="12" r="1.500"/><circle cx="12" cy="12" r="1.500"/><circle cx="19" cy="12" r="1.500"/>',
+ chart:'<path d="M3 21h18M6 17v-5M11 17V7M16 17v-8M21 17V4"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+ right:'<path d="M9 18l6-6-6-6"/>',left:'<path d="M15 18l-6-6 6-6"/>',
+ out:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
+ lock:'<rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/>',
+ link:'<path d="M10 14a4 4 0 005.700 0l3-3a4 4 0 00-5.700-5.700l-1 1M14 10a4 4 0 00-5.700 0l-3 3a4 4 0 005.700 5.700l1-1"/>',
+};
+const ic=n=>`<svg viewBox="0 0 24 24">${ICON[n]}</svg>`;
+function workdays(from,to,half){
+  let n=0;for(let d=P(from);d<=P(to);d.setDate(d.getDate()+1)){if(d.getDay()===0||d.getDay()===6||holMap[iso(d)])continue;n++}
+  return half?n*.5:n;
+}
+
+/* =============== state =============== */
+let me=null, tab='home', pendingLink=null;
+let apFilter='Pending', apKind='All';
+let calMonth=new Date(2026,9,1), calSel=null;
+function mine(){return reqs.filter(r=>r.appr===me.id)}
+function team(){return people.filter(p=>p.mgr===me.id)}
+function remaining(p,type){return TOTALS[type]-p.used[type]}
+function go(t){tab=t;closeSheet();render();$('#view').scrollTop=0}
+
+/* =============== secure link + sign in =============== */
+function readHash(){
+  const m=location.hash.match(/review\/([A-Z]+-\d{4}-\d+)/i);
+  pendingLink=m?m[1].toUpperCase():null;
+}
+window.addEventListener('hashchange',()=>{readHash();if(me&&pendingLink){render();openReview(pendingLink)}else render()});
+function vGate(){
+  const r=pendingLink&&reqs.find(x=>x.no===pendingLink);
+  return `<div class="gate"><div class="card">
+    <div class="logo">L</div>
+    <h1 style="font-size:26px">Manager sign in</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">${pendingLink?`You opened a review link for <b>${esc(pendingLink)}</b>. Sign in to continue.`:'Sign in to review your team’s requests.'}</p>
+    <div class="lock">${ic('lock')}<span>The link alone gives no access. After sign-in we check that <b>you</b> are the assigned approver.</span></div>
+    <label class="f">Sign in as <small style="color:var(--mute)">(demo)</small></label>
+    <select class="in" id="g_user">${Object.values(MANAGERS).map(m=>`<option value="${m.id}">${esc(m.name)} · ${esc(m.team)}</option>`).join('')}</select>
+    <label class="f">Password</label>
+    <input class="in" type="password" id="g_pw" placeholder="Demo: any value" onkeydown="if(event.key==='Enter')signIn()">
+    <div id="g_err"></div>
+    <button class="btn" onclick="signIn()">Sign in</button>
+  </div></div>`;
+}
+function signIn(){
+  if(!$('#g_pw').value){$('#g_err').innerHTML='<div class="err">Enter your password.</div>';return}
+  me=MANAGERS[$('#g_user').value];tab='home';render();
+  if(pendingLink){tab='approvals';apFilter='All';render();openReview(pendingLink)}
+}
+function signOut(){me=null;closeSheet();try{history.replaceState(null,'',location.pathname)}catch(e){}pendingLink=null;render()}
+
+/* =============== home =============== */
+function status(p,ds){
+  const r=reqs.find(x=>x.emp===p.id&&x.status==='Approved'&&ds>=x.from&&ds<=x.to);
+  return r?(r.kind==='wfh'?{s:'WFH',r}:{s:'Leave',r}):null;
+}
+function urgency(r){
+  const d=daysBetween(TODAY,r.from);
+  if(d<=0)return ['urgent','Starts today'];
+  if(d===1)return ['urgent','Starts tomorrow'];
+  if(d<=3)return ['soon',`In ${d} days`];
+  return null;
+}
+function pendRow(r){
+  const p=person(r.emp),u=urgency(r);
+  return `<div class="card who" onclick="openReview('${r.no}')"><div class="avatar">${ini(p.name)}</div>
+   <div class="m"><b>${esc(p.name)}</b><small>${r.kind==='wfh'?'Work from home':TLABEL[r.type]+' leave'} · ${range(r)} · ${r.days} day${r.days===1?'':'s'}</small></div>
+   ${u?`<span class="tag ${u[0]}">${u[1]}</span>`:`<span class="pill ${r.status}">${r.status}</span>`}</div>`;
+}
+function vHome(){
+  const pend=mine().filter(r=>r.status==='Pending').sort((a,b)=>a.from.localeCompare(b.from));
+  const away=team().map(p=>[p,status(p,TODAY)]).filter(x=>x[1]);
+  const wfh=away.filter(x=>x[1].s==='WFH').length, leave=away.length-wfh;
+  const week=[];for(let i=1;i<=7;i++){const d=new Date(P(TODAY));d.setDate(d.getDate()+i);const ds=iso(d);
+    const who=team().filter(p=>reqs.some(r=>r.emp===p.id&&r.status==='Approved'&&ds>=r.from&&ds<=r.to&&r.kind==='leave'));
+    if(who.length)week.push([ds,who])}
+  return `<header class="top"><div class="t"><small>Monday, 12 October</small><h1>Hi, ${esc(me.name.split(' ')[0])} 👋</h1></div><button class="avatar" onclick="go('profile')">${ini(me.name)}</button></header>
+  <div class="kpis">
+    <div class="kpi g"><small>Waiting for you</small><b>${pend.length}</b></div>
+    <div class="kpi"><small>Away today</small><b style="color:var(--brand)">${leave}</b></div>
+    <div class="kpi"><small>WFH today</small><b style="color:var(--plum)">${wfh}</b></div>
+    <div class="kpi"><small>Team size</small><b>${team().length}</b></div></div>
+  <div class="cols"><div>
+    <div class="sec" style="margin-top:6px"><h2>Needs your decision</h2><a onclick="go('approvals')">See all</a></div>
+    ${pend.length?pend.slice(0,4).map(pendRow).join(''):'<div class="card" style="text-align:center;padding:26px;color:var(--mute)">🎉 All caught up. No pending requests.</div>'}
+  </div><div>
+    <div class="sec" style="margin-top:6px"><h2>Today</h2></div>
+    ${away.length?away.map(([p,s])=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${s.s==='WFH'?'Working from home':TLABEL[s.r.type]+' leave'}</small></div><span class="tag ${s.s==='WFH'?'info':'ok'}">${s.s}</span></div>`).join(''):'<div class="card" style="color:var(--mute);text-align:center">Everyone is in the office.</div>'}
+    <div class="sec"><h2>Coming up this week</h2><a onclick="go('calendar')">Calendar</a></div>
+    ${week.length?week.map(([ds,who])=>`<div class="card hol"><div class="d"><b>${P(ds).getDate()}</b><small>${P(ds).toLocaleDateString('en-GB',{weekday:'short'})}</small></div><div class="m"><b>${who.map(p=>esc(p.name.split(' ')[0])).join(', ')}</b><small>on leave</small></div></div>`).join(''):'<div class="card" style="color:var(--mute);text-align:center">No planned leave this week.</div>'}
+  </div></div>`;
+}
+
+/* =============== approvals =============== */
+function vApprovals(){
+  const all=mine();
+  const list=all.filter(r=>(apFilter==='All'||r.status===apFilter)&&(apKind==='All'||r.kind===apKind.toLowerCase()))
+    .sort((a,b)=>apFilter==='Pending'?a.from.localeCompare(b.from):b.created.localeCompare(a.created));
+  const fs=['Pending','Approved','Rejected','All'];
+  return `<header class="top"><div class="t"><small>Leave and WFH from your team</small><h1>Approvals</h1></div></header>
+  <div class="filters">${fs.map(f=>`<button class="fl ${apFilter===f?'on':''}" onclick="apFilter='${f}';render()">${f}${f!=='All'?` · ${all.filter(r=>r.status===f).length}`:''}</button>`).join('')}</div>
+  <div class="seg">${['All','Leave','WFH'].map(k=>`<button class="${apKind===k?'on':''}" onclick="apKind='${k}';render()">${k}</button>`).join('')}</div>
+  ${list.length?`<div class="list2">${list.map(r=>{const p=person(r.emp),u=r.status==='Pending'?urgency(r):null;
+    return `<div class="card who" onclick="openReview('${r.no}')"><div class="avatar">${ini(p.name)}</div>
+      <div class="m"><b>${esc(p.name)}</b><small>${r.kind==='wfh'?'Work from home':TLABEL[r.type]+' leave'} · ${range(r)}</small><small>${r.days} day${r.days===1?'':'s'} · ${esc(r.no)}</small></div>
+      <div style="text-align:right"><span class="pill ${r.status}">${r.status}</span>${u?`<br><span class="tag ${u[0]}" style="margin-top:6px">${u[1]}</span>`:''}</div></div>`}).join('')}</div>`
+   :`<div class="empty">Nothing here.</div>`}`;
+}
+function conflicts(r){
+  const p=person(r.emp);
+  return reqs.filter(x=>x.no!==r.no&&x.emp!==r.emp&&person(x.emp).team===p.team&&['Approved','Pending'].includes(x.status)&&x.from<=r.to&&x.to>=r.from);
+}
+function openReview(no){
+  const r=reqs.find(x=>x.no===no);
+  if(!me){pendingLink=no;render();return}
+  if(!r){sheet(`<h2 style="font-size:22px">Request not found</h2><p style="color:var(--mute);margin-top:8px">No request with ID ${esc(no)}.</p><button class="btn" onclick="closeSheet()">Close</button>`);return}
+  if(r.appr!==me.id){
+    sheet(`<div style="text-align:center;padding:10px 0"><div style="width:60px;height:60px;border-radius:50%;background:var(--red-l);color:var(--red);display:grid;place-items:center;margin:0 auto 12px">${ic('lock')}</div>
+      <h2 style="font-size:22px">You can’t review this request</h2>
+      <p style="color:var(--mute);margin-top:8px;font-size:14px">${esc(r.no)} is assigned to <b>${esc(MANAGERS[r.appr].name)}</b>. You’re signed in as <b>${esc(me.name)}</b>. Having the link isn’t enough, only the assigned approver can open it.</p>
+      <button class="btn" onclick="closeSheet()">Close</button></div>`);
+    return;
+  }
+  const p=person(r.emp), isL=r.kind==='leave', pend=r.status==='Pending';
+  const rem=isL?remaining(p,r.type):null, short=isL&&r.days>rem;
+  const cf=conflicts(r);
+  const teamSize=team().length;
+  const away=new Set(cf.map(x=>x.emp)).size+1;
+  const colors={Submitted:'var(--amber)',Approved:'var(--green)',Rejected:'var(--red)',Cancelled:'var(--mute)'};
+  sheet(`<div class="row" style="align-items:flex-start"><div style="flex:1"><h2 style="font-size:22px">${esc(p.name)}</h2><small style="color:var(--mute)">${esc(p.desig)} · ${esc(r.no)}</small></div><span class="pill ${r.status}" style="flex:none">${r.status}</span></div>
+   <div class="card" style="margin-top:14px;padding:6px 16px">
+     <div class="kv"><span>Type</span><b>${r.kind==='wfh'?'Work from home':TLABEL[r.type]+' leave'}</b></div>
+     <div class="kv"><span>Dates</span><b>${range(r)}</b></div>
+     <div class="kv"><span>Duration</span><b>${r.days} day${r.days===1?'':'s'}${r.half?' (half day)':''}</b></div>
+     <div class="kv"><span>Applied</span><b>${fmt(r.created,{day:'numeric',month:'short'})}</b></div>
+     <div class="kv"><span>Reason</span><b style="max-width:62%;text-align:right">${esc(r.reason)}</b></div></div>
+   ${isL?`<div class="card"><div class="row"><b style="flex:none;font-size:14px">${TLABEL[r.type]} balance</b><span style="text-align:right;font-size:14px"><b>${rem}</b> left → <b style="color:${short?'var(--red)':'var(--green)'}">${short?'short by '+(r.days-rem):rem-r.days}</b></span></div>
+     <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,p.used[r.type]/TOTALS[r.type]*100)}%"></i></div>
+     <small style="color:var(--mute)">${p.used[r.type]} of ${TOTALS[r.type]} used this year. Deducted only on approval.</small></div>`:''}
+   ${cf.length?`<div class="warn"><b>${cf.length} overlapping request${cf.length===1?'':'s'} in your team</b><br>${cf.map(x=>`${esc(person(x.emp).name)} · ${range(x)} <small>(${x.status.toLowerCase()})</small>`).join('<br>')}<br><small>If approved, ${away} of ${teamSize} would be away.</small></div>`:`<div class="good">No overlaps with your team on these dates.</div>`}
+   ${short&&pend?`<div class="err">Not enough ${TLABEL[r.type].toLowerCase()} balance. Approval is blocked. Ask the employee to change type or dates, or contact HR.</div>`:''}
+   ${r.rej?`<div class="err"><b>Rejection reason</b><br>${esc(r.rej)}</div>`:''}
+   <div class="sec" style="margin:16px 2px 6px"><h2 style="font-size:16px">History</h2></div>
+   <div class="tl">${r.hist.map(([a,t])=>`<div style="--c:${colors[a.split(' ')[0]]||'var(--mute)'}">${esc(a)}<small>${esc(t)}</small></div>`).join('')}</div>
+   ${pend?`<div id="rj" style="display:none"><label class="f">Reason for rejection <small style="color:var(--mute)">(shown to ${esc(p.name.split(' ')[0])})</small></label>
+      <textarea class="in" id="rj_text" placeholder="Explain briefly…"></textarea>
+      <div class="quick-r">${['Team deadline that week','Too many people away','Please choose different dates','Need more details'].map(s=>`<button onclick="$('#rj_text').value='${s}'">${s}</button>`).join('')}</div>
+      <div id="rj_err"></div>
+      <div class="row" style="margin-top:14px"><button class="btn line" style="margin-top:0" onclick="$('#rj').style.display='none';$('#acts').style.display='flex'">Back</button><button class="btn no" style="margin-top:0" onclick="doReject('${r.no}')">Confirm reject</button></div></div>
+     <div id="acts" class="row" style="margin-top:18px"><button class="btn line" style="margin-top:0" onclick="$('#acts').style.display='none';$('#rj').style.display='block'">Reject</button><button class="btn ok" style="margin-top:0" ${short?'disabled':''} onclick="doApprove('${r.no}')">Approve</button></div>`:''}
+   <button class="btn line" style="margin-top:12px" onclick="copyLink('${r.no}')">${''}Copy secure review link</button>`);
+}
+function copyLink(no){
+  const url=location.href.split('#')[0]+'#/review/'+no;
+  (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>toast('Link copied. Opening it still requires sign-in.'),()=>toast(url));
+}
+function decide(no,status,extra){
+  const r=reqs.find(x=>x.no===no);
+  if(!r||r.appr!==me.id){toast('Not authorized');return null}
+  if(r.status!=='Pending'){toast(`Already ${r.status.toLowerCase()}`);closeSheet();render();return null}
+  r.status=status;r.hist.push([`${status} by ${me.name}`,nowStamp()]);Object.assign(r,extra||{});return r;
+}
+function doApprove(no){
+  const r0=reqs.find(x=>x.no===no),p=person(r0.emp);
+  if(r0.kind==='leave'&&r0.days>remaining(p,r0.type)){toast('Insufficient balance');return}
+  const r=decide(no,'Approved');if(!r)return;
+  if(r.kind==='leave')p.used[r.type]+=r.days;
+  closeSheet();render();toast(`Approved. ${p.name.split(' ')[0]} has been notified.`);
+}
+function doReject(no){
+  const t=$('#rj_text').value.trim();
+  if(!t){$('#rj_err').innerHTML='<div class="err">A reason is required to reject.</div>';return}
+  const r=decide(no,'Rejected',{rej:t});if(!r)return;
+  closeSheet();render();toast(`Rejected. ${person(r.emp).name.split(' ')[0]} has been notified.`);
+}
+
+/* =============== calendar =============== */
+function vCalendar(){
+  const first=new Date(calMonth.getFullYear(),calMonth.getMonth(),1),n=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,0).getDate();
+  const off=(first.getDay()+6)%7;
+  const tm=new Set(team().map(p=>p.id));
+  const rows=reqs.filter(r=>tm.has(r.emp)&&['Approved','Pending'].includes(r.status));
+  let g=['M','T','W','T','F','S','S'].map(d=>`<div class="dow">${d}</div>`).join('')+'<div></div>'.repeat(off);
+  for(let i=1;i<=n;i++){
+    const ds=iso(new Date(calMonth.getFullYear(),calMonth.getMonth(),i)),dw=P(ds).getDay(),we=dw===0||dw===6;
+    const rs=we?[]:rows.filter(r=>ds>=r.from&&ds<=r.to);
+    const dots=rs.slice(0,4).map(r=>`<i class="${r.status==='Pending'?'p':r.kind==='wfh'?'w':''}"></i>`).join('');
+    g+=`<button class="cell ${we?'we':''} ${holMap[ds]?'hol':''} ${ds===TODAY?'today':''} ${calSel===ds?'sel':''}" onclick="calSel='${ds}';render()">${i}<span class="dayc">${dots}</span></button>`;
+  }
+  let det='';
+  if(calSel){
+    const rs=rows.filter(r=>calSel>=r.from&&calSel<=r.to&&![0,6].includes(P(calSel).getDay()));
+    det=`<div class="card"><b>${fmt(calSel,{weekday:'long',day:'numeric',month:'long'})}</b>${holMap[calSel]?`<br><small style="color:var(--brand)">${esc(holMap[calSel])}</small>`:''}
+      ${rs.length?rs.map(r=>`<div class="row" style="margin-top:10px;cursor:pointer" onclick="openReview('${r.no}')"><div style="flex:1"><b style="font-size:14px">${esc(person(r.emp).name)}</b><br><small style="color:var(--mute)">${r.kind==='wfh'?'WFH':TLABEL[r.type]+' leave'}</small></div><span class="pill ${r.status}" style="flex:none">${r.status}</span></div>`).join(''):'<br><small style="color:var(--mute)">Nobody away.</small>'}</div>`;
+  }
+  const mh=holidays.filter(h=>h.d.startsWith(iso(calMonth).slice(0,7)));
+  return `<header class="top"><div class="t"><small>${esc(me.team)} team</small><h1>Team calendar</h1></div></header>
+  <div class="cols"><div><div class="card"><div class="calhead"><button class="iconbtn" onclick="calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);calSel=null;render()">${ic('left')}</button><b>${calMonth.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</b><button class="iconbtn" onclick="calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);calSel=null;render()">${ic('right')}</button></div>
+  <div class="grid">${g}</div>
+  <div class="legend"><span style="--c:var(--brand)">Leave</span><span style="--c:var(--amber)">Pending</span><span style="--c:var(--plum)">WFH</span></div></div>${det}</div>
+  <div><div class="sec" style="margin-top:0"><h2>Holidays this month</h2></div>
+  ${mh.length?mh.map(h=>`<div class="card hol"><div class="d"><b>${P(h.d).getDate()}</b><small>${P(h.d).toLocaleDateString('en-GB',{month:'short'})}</small></div><div class="m"><b>${esc(h.n)}</b><small>${P(h.d).toLocaleDateString('en-GB',{weekday:'long'})}</small></div></div>`).join(''):'<div class="card" style="color:var(--mute);text-align:center">No holidays this month.</div>'}</div></div>`;
+}
+
+/* =============== team =============== */
+function vTeam(){
+  return `<header class="top"><div class="t"><small>${esc(me.team)} · ${team().length} people</small><h1>My team</h1></div></header>
+  <div class="list2">${team().map(p=>{const s=status(p,TODAY),pe=reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length;
+   return `<div class="card who" onclick="openMember('${p.id}')"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${esc(p.desig)}</small><small>${TLABEL.annual}: ${remaining(p,'annual')} left${pe?` · ${pe} pending`:''}</small></div>
+    <span class="tag ${s?(s.s==='WFH'?'info':'soon'):'ok'}">${s?s.s:'In'}</span></div>`}).join('')}</div>`;
+}
+function openMember(id){
+  const p=person(id),rs=reqs.filter(r=>r.emp===id).sort((a,b)=>b.from.localeCompare(a.from));
+  sheet(`<div class="row"><div class="avatar" style="flex:none;width:52px;height:52px">${ini(p.name)}</div><div style="flex:1"><h2 style="font-size:22px">${esc(p.name)}</h2><small style="color:var(--mute)">${esc(p.desig)} · ${p.id}</small></div></div>
+   <div class="card" style="margin-top:14px">${Object.keys(TOTALS).map(t=>`<div style="margin-bottom:12px"><div class="row"><b style="font-size:14px">${TLABEL[t]}</b><span style="text-align:right;font-size:13px;color:var(--mute)">${remaining(p,t)} of ${TOTALS[t]} left</span></div><div class="bar" style="margin-top:6px"><i style="width:${p.used[t]/TOTALS[t]*100}%"></i></div></div>`).join('')}</div>
+   <div class="sec" style="margin:14px 2px 8px"><h2 style="font-size:16px">Recent requests</h2></div>
+   ${rs.slice(0,5).map(r=>`<div class="card who" onclick="openReview('${r.no}')"><div class="m"><b>${r.kind==='wfh'?'Work from home':TLABEL[r.type]+' leave'}</b><small>${range(r)} · ${r.days} day${r.days===1?'':'s'}</small></div><span class="pill ${r.status}">${r.status}</span></div>`).join('')||'<div class="empty">No requests yet.</div>'}`);
+}
+
+/* =============== reports =============== */
+function vReports(){
+  const t=team();
+  const tot=Object.keys(TOTALS).map(k=>[k,t.reduce((a,p)=>a+p.used[k],0),t.length*TOTALS[k]]);
+  const wfh=reqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&t.some(p=>p.id===r.emp)&&r.from.startsWith('2026-10'));
+  return `<header class="top"><div class="t"><small>${esc(me.team)} · 2026</small><h1>Reports</h1></div></header>
+  <div class="kpis"><div class="kpi g"><small>Leave days used</small><b>${tot.reduce((a,x)=>a+x[1],0)}</b></div>
+   <div class="kpi"><small>Approved this month</small><b style="color:var(--green)">${mine().filter(r=>r.status==='Approved'&&r.created.startsWith('2026-10')).length}</b></div>
+   <div class="kpi"><small>Rejected (all time)</small><b style="color:var(--red)">${mine().filter(r=>r.status==='Rejected').length}</b></div>
+   <div class="kpi"><small>WFH days (Oct)</small><b style="color:var(--plum)">${wfh.reduce((a,r)=>a+r.days,0)}</b></div></div>
+  <div class="cols"><div><div class="sec" style="margin-top:6px"><h2>Leave used by type</h2></div>
+  ${tot.map(([k,u,c])=>`<div class="card"><div class="row"><b>${TLABEL[k]}</b><span style="text-align:right;color:var(--mute);font-size:13px">${u} of ${c} days</span></div><div class="bar" style="margin-top:10px"><i style="width:${u/c*100}%"></i></div></div>`).join('')}</div>
+  <div><div class="sec" style="margin-top:6px"><h2>By person</h2></div>
+  <div class="tablewrap"><table><tr><th>Name</th><th>Annual</th><th>Sick</th><th>Casual</th><th>Pending</th></tr>
+  ${t.map(p=>`<tr><td>${esc(p.name)}</td><td>${remaining(p,'annual')}</td><td>${remaining(p,'sick')}</td><td>${remaining(p,'casual')}</td><td>${reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length}</td></tr>`).join('')}</table></div>
+  <p style="color:var(--mute);font-size:12px;margin-top:8px">Balances show days remaining.</p></div></div>`;
+}
+
+/* =============== profile + shell =============== */
+function vProfile(){
+  return `<header class="top"><div class="t"><small>Signed in</small><h1>Profile</h1></div></header>
+  <div class="prof"><div class="avatar">${ini(me.name)}</div><h1>${esc(me.name)}</h1><p>${esc(me.desig)}</p></div>
+  <div class="card" style="margin-top:18px;padding:6px 16px">
+   <div class="kv"><span>Employee ID</span><b>${me.id}</b></div><div class="kv"><span>Email</span><b>${esc(me.email)}</b></div>
+   <div class="kv"><span>Team</span><b>${esc(me.team)}</b></div><div class="kv"><span>Direct reports</span><b>${team().length}</b></div><div class="kv"><span>Role</span><b>Manager</b></div></div>
+  <button class="btn line" onclick="signOut()">Sign out</button>`;
+}
+function openMore(){
+  sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>
+   <div class="more" onclick="go('reports')">${ic('chart')}<span>Reports</span>${ic('right')}</div>
+   <div class="more" onclick="go('profile')">${ic('user')}<span>Profile</span>${ic('right')}</div>
+   <div class="more" style="color:var(--red);border:none" onclick="signOut()">${ic('out')}<span>Sign out</span></div>`);
+}
+const VIEWS={home:vHome,approvals:vApprovals,calendar:vCalendar,team:vTeam,reports:vReports,profile:vProfile};
+function render(){
+  const st=$('#view').scrollTop;
+  document.body.classList.toggle('nonav',!me);
+  if(!me){$('#view').innerHTML=vGate();$('#nav').style.display='none';return}
+  $('#nav').style.display='';
+  $('#view').innerHTML='<div class="page'+(tab==='profile'?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
+  $('#view').scrollTop=st;
+  const pc=mine().filter(r=>r.status==='Pending').length;
+  const items=[['home','Home','grid',''],['approvals','Approvals','check',''],['calendar','Calendar','cal',''],['team','Team','users',''],['reports','Reports','chart','dOnly'],['profile','Profile','user','dOnly']];
+  $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Manager</span></div>'
+   +items.map(([k,l,i,c])=>`<button class="${tab===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}${k==='approvals'&&pc?`<span class="nb">${pc}</span>`:''}</button>`).join('')
+   +`<button class="mOnly ${['reports','profile'].includes(tab)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
+   +`<button class="sidelink" onclick="signOut()">${ic('out')}Sign out</button>`;
+}
+readHash();render();
+</script>
+</body>
+</html>
