@@ -219,20 +219,93 @@ textarea.in{resize:none;height:90px}
 </div>
 
 <script>
-/* =============== shared browser store (stand-in until the D1 backend exists) =============== */
-const STORE_KEY='leavedesk.v1';
-const INDIA_2026=[['2026-01-01','New Year’s Day'],['2026-01-26','Republic Day'],['2026-03-04','Holi'],['2026-05-01','Labour Day'],['2026-08-15','Independence Day'],['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']];
+/* =============== API client (talks to the Cloudflare Worker + D1) =============== */
 const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
-function blankDB(){return {v:1,teams:[],emps:[],teamLeads:{},holidays:INDIA_2026.map(([d,n])=>({d,n})),reqs:[],att:{},imports:[],audit:[],seq:{LV:0,WFH:0}}}
-function readStore(){try{const d=JSON.parse(localStorage.getItem(STORE_KEY));if(d&&d.v===1)return d}catch(e){}return null}
-let DB=Object.assign(blankDB(),readStore()||{});
-function saveDB(){try{localStorage.setItem(STORE_KEY,JSON.stringify(DB))}catch(e){}}
-function reloadDB(){const d=readStore();if(d){DB=Object.assign(blankDB(),d);return true}return false}
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-function stamp(){return todayISO()+' '+new Date().toTimeString().slice(0,5)}
-function nextReqNo(kind){const k=kind==='wfh'?'WFH':'LV';DB.seq[k]=(DB.seq[k]||0)+1;return `${k}-${new Date().getFullYear()}-${String(DB.seq[k]).padStart(4,'0')}`}
+async function api(method,url,body){
+  let r;
+  try{r=await fetch(url,{method,credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})}
+  catch(e){const err=new Error('Can’t reach the server. Check your connection and try again.');err.status=0;throw err}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof render==='function')render()},0)}
+    throw err;
+  }
+  return j;
+}
+async function loadState(){
+  try{
+    const s=await api('GET','/api/state');
+    ME=s.me;
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
+    return true;
+  }catch(e){
+    if(e.status===401){ME=null;DB=blankDB();try{NEEDS_SETUP=(await api('GET','/api/auth/status')).needsSetup}catch(_){}return false}
+    throw e;
+  }
+}
 function usedDays(empId,type){const y=todayISO().slice(0,4);return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Approved'&&r.from.startsWith(y)).reduce((a,r)=>a+r.days,0)}
 function pendingDays(empId,type){return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Pending').reduce((a,r)=>a+r.days,0)}
+
+/* ---- sign in / first-time setup ---- */
+function loginGate(title,sub,note){
+  if(BOOTING)return `<div class="gate"><div class="card" style="text-align:center;color:var(--mute)">Loading…</div></div>`;
+  const logo='<div class="logo">L</div>';
+  if(NEEDS_SETUP){
+    if(typeof PAGE!=='undefined'&&PAGE==='admin')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Set up LeaveDesk</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:6px">Create the first administrator account. You can add everyone else afterwards.</p>
+      <label class="f">Your name</label><input class="in" id="s_name" autocomplete="name">
+      <label class="f">Email</label><input class="in" type="email" id="s_email" autocomplete="username">
+      <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
+      <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
+    return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Not set up yet</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:8px">The administrator needs to finish setup first.</p>
+      <a class="btn" style="display:block;text-align:center;text-decoration:none" href="admin.html">Open Admin</a></div></div>`;
+  }
+  return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>
+    ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
+    <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
+    <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button></div></div>`;
+}
+function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
+async function submitLogin(){
+  const email=document.getElementById('g_email').value.trim(),pw=document.getElementById('g_pw').value;
+  if(!email||!pw)return gateError('Enter your email and password.');
+  const b=document.getElementById('g_btn');b.disabled=true;
+  try{await api('POST','/api/auth/login',{email,password:pw});await loadState();afterAuth()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+async function submitSetup(){
+  const name=document.getElementById('s_name').value.trim(),email=document.getElementById('s_email').value.trim(),pw=document.getElementById('s_pw').value;
+  if(!name||!email||pw.length<8)return gateError('Enter your name, a valid email and a password of at least 8 characters.');
+  try{await api('POST','/api/auth/setup',{name,email,password:pw});NEEDS_SETUP=false;await loadState();afterAuth()}
+  catch(e){gateError(e.message)}
+}
+function afterAuth(){if(typeof onAuthed==='function')onAuthed();else render()}
+async function doLogout(){try{await api('POST','/api/auth/logout',{})}catch(e){}ME=null;DB=blankDB();try{closeSheet()}catch(e){}render()}
+function deniedGate(title,msg){
+  return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:24px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:8px">${msg}</p>
+    <p style="font-size:13px;margin-top:10px">Signed in as <b>${String(ME&&ME.name||'').replace(/</g,'&lt;')}</b>.</p>
+    <button class="btn" onclick="doLogout()">Sign out</button></div></div>`;
+}
+/* keep data fresh without a manual reload */
+function softRefresh(){
+  if(!ME||document.hidden)return;
+  loadState().then(()=>{
+    if(document.querySelector('#overlay .sheet'))return;
+    if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName))return;
+    render();
+  }).catch(()=>{});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefresh()});
+setInterval(softRefresh,60000);
+async function boot(){try{await loadState()}catch(e){}BOOTING=false;render()}
 
 /* =============== employee app =============== */
 const LT={
@@ -241,7 +314,7 @@ const LT={
   casual:{label:'Casual', total:LEAVE_TYPES.casual.total, color:'var(--blue)',  bg:'var(--blue-l)'},
 };
 const TODAY=todayISO();
-const SESSION_KEY='leavedesk.employee';
+const PAGE='employee';
 const $=s=>document.querySelector(s);
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const P=s=>new Date(s+'T00:00');
@@ -258,9 +331,8 @@ function workdays(from,to,half){
 
 /* ---------- session ---------- */
 let meId=null;
-try{meId=localStorage.getItem(SESSION_KEY)}catch(e){}
-const me=()=>DB.emps.find(e=>e.id===meId&&e.active)||null;
-const manager=()=>{const m=me();return m&&m.mgr?DB.emps.find(e=>e.id===m.mgr&&e.active)||null:null};
+const me=()=>ME;
+const manager=()=>ME&&ME.mgr?DB.emps.find(e=>e.id===ME.mgr&&e.active)||null:null;
 const myReqs=()=>DB.reqs.filter(r=>r.emp===meId).sort((a,b)=>b.created.localeCompare(a.created));
 const used=t=>usedDays(meId,t), pending=t=>pendingDays(meId,t);
 
@@ -290,25 +362,8 @@ function closeSheet(){$('#overlay').innerHTML=''}
 function sheet(html){$('#overlay').innerHTML=`<div class="scrim" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="grab"></div>${html}</div></div>`}
 
 /* ---------- sign in ---------- */
-function vGate(){
-  const list=DB.emps.filter(e=>e.active);
-  if(!list.length)return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:26px">No employees yet</h1>
-    <p style="color:var(--mute);font-size:14px;margin-top:8px">An admin needs to add employees before anyone can sign in.</p>
-    <a class="btn" style="display:block;text-align:center;text-decoration:none" href="admin.html">Open Admin</a></div></div>`;
-  return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:26px">Welcome</h1>
-    <p style="color:var(--mute);font-size:14px;margin-top:6px">Sign in to apply for leave and track your requests.</p>
-    <label class="f">Employee <small style="color:var(--mute)">(demo sign-in)</small></label>
-    <select class="in" id="g_user">${list.map(e=>`<option value="${esc(e.id)}">${esc(e.name)} · ${esc(e.id)}</option>`).join('')}</select>
-    <label class="f">Password</label><input class="in" type="password" id="g_pw" placeholder="Demo: any value" onkeydown="if(event.key==='Enter')signIn()">
-    <div id="g_err"></div><button class="btn" onclick="signIn()">Sign in</button></div></div>`;
-}
-function signIn(){
-  if(!$('#g_pw').value){$('#g_err').innerHTML='<div class="err">Enter your password.</div>';return}
-  meId=$('#g_user').value;try{localStorage.setItem(SESSION_KEY,meId)}catch(e){}
-  tab='home';render();
-}
-function signOut(){meId=null;try{localStorage.removeItem(SESSION_KEY)}catch(e){}closeSheet();render()}
-
+function vGate(){return loginGate('Welcome','Sign in to apply for leave and track your requests.','')}
+function onAuthed(){tab='home';render()}
 /* ---------- views ---------- */
 function reqRow(r){
   const lt=r.kind==='leave'?LT[r.type]:null;
@@ -369,24 +424,19 @@ function vApply(){
   <button class="btn" ${mg?'':'disabled style="opacity:.5"'} onclick="submitReq()">Submit ${isL?'leave':'WFH'} request</button>
   <p style="text-align:center;color:var(--mute);font-size:12px;margin-top:10px">Your manager is notified instantly. Balance is deducted only after approval.</p>`;
 }
-function submitReq(){
-  reloadDB();
+async function submitReq(){
   const r=frm, isL=r.kind==='leave', mg=manager();
   if(!mg) return fail('No reporting manager is assigned to you.');
   if(!r.from||(isL&&!r.to)) return fail('Please select the date(s).');
   const to=isL?r.to:r.from;
   if(to<r.from) return fail('End date cannot be before start date.');
   if(!r.reason.trim()) return fail('Please add a reason.');
-  const days=isL?workdays(r.from,to,r.half):workdays(r.from,to,false);
-  if(days===0) return fail('Selected dates fall on weekends or holidays. Nothing to apply for.');
-  const dup=myReqs().find(x=>x.kind===r.kind&&['Pending','Approved'].includes(x.status)&&r.from<=x.to&&to>=x.from);
-  if(dup) return fail(`This overlaps with your ${dup.status.toLowerCase()} request ${dup.no} (${range(dup)}).`);
-  if(isL){const rem=LT[r.type].total-used(r.type)-pending(r.type); if(days>rem) return fail(`Only ${rem} ${LT[r.type].label.toLowerCase()} day(s) available.`);}
-  const no=nextReqNo(r.kind);
-  DB.reqs.unshift({no,emp:meId,appr:mg.id,kind:r.kind,type:isL?r.type:null,from:r.from,to,half:isL&&r.half,days,reason:r.reason.trim(),status:'Pending',created:stamp(),hist:[['Submitted',stamp()]]});
-  saveDB();
-  frm={kind:r.kind,type:'annual',from:TODAY,to:TODAY,half:false,reason:'',err:''};
-  filter='All'; go('requests'); toast(`Request ${no} sent to ${mg.name}`);
+  try{
+    const res=await api('POST','/api/requests',{kind:r.kind,type:isL?r.type:null,from:r.from,to,half:isL&&r.half,reason:r.reason.trim()});
+    await loadState();
+    frm={kind:r.kind,type:'annual',from:TODAY,to:TODAY,half:false,reason:'',err:''};
+    filter='All'; go('requests'); toast(`Request ${res.no} sent to ${mg.name}`);
+  }catch(err){fail(err.message)}
 }
 function fail(m){frm.err=m;render();$('#view').scrollTo({top:9999,behavior:'smooth'})}
 
@@ -415,11 +465,9 @@ function openReq(no){
    ${r.status==='Pending'?`<button class="btn ghost" onclick="cancelReq('${r.no}')">Cancel request</button>`:''}
    ${r.status==='Rejected'?`<button class="btn" onclick="closeSheet();frm.kind='${r.kind}';go('apply')">Apply again</button>`:''}`);
 }
-function cancelReq(no){
-  reloadDB();
-  const r=DB.reqs.find(x=>x.no===no&&x.emp===meId);
-  if(!r||r.status!=='Pending'){toast(r?`Already ${r.status.toLowerCase()}`:'Request not found');closeSheet();render();return}
-  r.status='Cancelled';r.hist.push(['Cancelled by you',stamp()]);saveDB();closeSheet();render();toast('Request cancelled');
+async function cancelReq(no){
+  try{await api('POST',`/api/requests/${encodeURIComponent(no)}/cancel`,{});await loadState();closeSheet();render();toast('Request cancelled')}
+  catch(err){toast(err.message);try{await loadState()}catch(_){}closeSheet();render()}
 }
 
 function monthGrid(m,cellFn){
@@ -488,14 +536,14 @@ function vProfile(){
     <div class="kv"><span>Team</span><b>${esc(e.team||'—')}</b></div><div class="kv"><span>Reports to</span><b>${mg?esc(mg.name):'Not assigned'}</b></div></div>
   <div class="card" style="padding:0">
     <div class="menu" onclick="toast('Contact HR to change your details')">${ic('help')}<span>Help & HR contact</span>${ic('right')}</div>
-    <div class="menu" style="color:var(--red)" onclick="signOut()">${ic('out')}<span>Sign out</span></div></div>`;
+    <div class="menu" style="color:var(--red)" onclick="doLogout()">${ic('out')}<span>Sign out</span></div></div>`;
 }
 
 const VIEWS={home:vHome,apply:vApply,requests:vRequests,calendar:vCalendar,attendance:vAttendance,profile:vProfile};
 function render(){
-  reloadDB();
+  meId=ME?ME.id:null;
   const st=$('#view').scrollTop;
-  if(!me()){meId=null;$('#nav').style.display='none';$('#view').innerHTML=vGate();return}
+  if(!ME){$('#nav').style.display='none';$('#view').innerHTML=vGate();return}
   $('#nav').style.display='';
   $('#view').innerHTML='<div class="page'+(tab==='apply'||tab==='profile'?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
   $('#view').scrollTop=st;
@@ -504,8 +552,7 @@ function render(){
     ?`<button class="apply" onclick="go('apply')"><span class="fab">${ic(i)}</span>${l}</button>`
     :`<button class="${tab===k?'on':''}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')+`<button class="sidelink ${tab==='profile'?'on':''}" onclick="go('profile')">${ic('user')}Profile</button>`;
 }
-window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&!document.querySelector('#overlay .sheet')&&document.activeElement.tagName!=='TEXTAREA')render()});
-render();
+boot();
 
 </script>
 </body>

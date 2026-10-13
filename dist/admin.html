@@ -274,6 +274,14 @@ tr.bad td{background:var(--red-l)}
 .addrow .m{flex:1;min-width:0}.addrow .m b{font-size:14px;display:block}.addrow .m small{font-size:12px;color:var(--mute)}
 .hdr-actions{display:none}
 @media(min-width:900px){.hdr-actions{display:block}}
+
+/* sign-in gate + notices */
+.gate{min-height:100%;display:grid;place-items:center;padding:20px}
+.gate .card{width:100%;max-width:400px;padding:24px}
+.gate .logo{width:48px;height:48px;border-radius:14px;background:var(--grad);color:#fff;display:grid;place-items:center;font-family:Fraunces,serif;font-size:22px;margin-bottom:14px}
+.lock{display:flex;gap:10px;align-items:center;padding:11px 13px;border-radius:12px;background:var(--brand-l);color:var(--brand-d);font-size:13px;margin:14px 0 0}
+.warnbox{background:var(--amber-l);color:var(--amber);padding:12px 14px;border-radius:14px;font-size:13px;font-weight:500;margin-bottom:12px}
+.btn:disabled{cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -284,30 +292,101 @@ tr.bad td{background:var(--red-l)}
 </div>
 
 <script>
-/* =============== shared browser store (stand-in until the D1 backend exists) =============== */
-const STORE_KEY='leavedesk.v1';
-const INDIA_2026=[['2026-01-01','New Year’s Day'],['2026-01-26','Republic Day'],['2026-03-04','Holi'],['2026-05-01','Labour Day'],['2026-08-15','Independence Day'],['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']];
+/* =============== API client (talks to the Cloudflare Worker + D1) =============== */
 const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
-function blankDB(){return {v:1,teams:[],emps:[],teamLeads:{},holidays:INDIA_2026.map(([d,n])=>({d,n})),reqs:[],att:{},imports:[],audit:[],seq:{LV:0,WFH:0}}}
-function readStore(){try{const d=JSON.parse(localStorage.getItem(STORE_KEY));if(d&&d.v===1)return d}catch(e){}return null}
-let DB=Object.assign(blankDB(),readStore()||{});
-function saveDB(){try{localStorage.setItem(STORE_KEY,JSON.stringify(DB))}catch(e){}}
-function reloadDB(){const d=readStore();if(d){DB=Object.assign(blankDB(),d);return true}return false}
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-function stamp(){return todayISO()+' '+new Date().toTimeString().slice(0,5)}
-function nextReqNo(kind){const k=kind==='wfh'?'WFH':'LV';DB.seq[k]=(DB.seq[k]||0)+1;return `${k}-${new Date().getFullYear()}-${String(DB.seq[k]).padStart(4,'0')}`}
+async function api(method,url,body){
+  let r;
+  try{r=await fetch(url,{method,credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})}
+  catch(e){const err=new Error('Can’t reach the server. Check your connection and try again.');err.status=0;throw err}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof render==='function')render()},0)}
+    throw err;
+  }
+  return j;
+}
+async function loadState(){
+  try{
+    const s=await api('GET','/api/state');
+    ME=s.me;
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
+    return true;
+  }catch(e){
+    if(e.status===401){ME=null;DB=blankDB();try{NEEDS_SETUP=(await api('GET','/api/auth/status')).needsSetup}catch(_){}return false}
+    throw e;
+  }
+}
 function usedDays(empId,type){const y=todayISO().slice(0,4);return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Approved'&&r.from.startsWith(y)).reduce((a,r)=>a+r.days,0)}
 function pendingDays(empId,type){return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Pending').reduce((a,r)=>a+r.days,0)}
 
+/* ---- sign in / first-time setup ---- */
+function loginGate(title,sub,note){
+  if(BOOTING)return `<div class="gate"><div class="card" style="text-align:center;color:var(--mute)">Loading…</div></div>`;
+  const logo='<div class="logo">L</div>';
+  if(NEEDS_SETUP){
+    if(typeof PAGE!=='undefined'&&PAGE==='admin')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Set up LeaveDesk</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:6px">Create the first administrator account. You can add everyone else afterwards.</p>
+      <label class="f">Your name</label><input class="in" id="s_name" autocomplete="name">
+      <label class="f">Email</label><input class="in" type="email" id="s_email" autocomplete="username">
+      <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
+      <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
+    return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Not set up yet</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:8px">The administrator needs to finish setup first.</p>
+      <a class="btn" style="display:block;text-align:center;text-decoration:none" href="admin.html">Open Admin</a></div></div>`;
+  }
+  return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>
+    ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
+    <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
+    <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button></div></div>`;
+}
+function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
+async function submitLogin(){
+  const email=document.getElementById('g_email').value.trim(),pw=document.getElementById('g_pw').value;
+  if(!email||!pw)return gateError('Enter your email and password.');
+  const b=document.getElementById('g_btn');b.disabled=true;
+  try{await api('POST','/api/auth/login',{email,password:pw});await loadState();afterAuth()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+async function submitSetup(){
+  const name=document.getElementById('s_name').value.trim(),email=document.getElementById('s_email').value.trim(),pw=document.getElementById('s_pw').value;
+  if(!name||!email||pw.length<8)return gateError('Enter your name, a valid email and a password of at least 8 characters.');
+  try{await api('POST','/api/auth/setup',{name,email,password:pw});NEEDS_SETUP=false;await loadState();afterAuth()}
+  catch(e){gateError(e.message)}
+}
+function afterAuth(){if(typeof onAuthed==='function')onAuthed();else render()}
+async function doLogout(){try{await api('POST','/api/auth/logout',{})}catch(e){}ME=null;DB=blankDB();try{closeSheet()}catch(e){}render()}
+function deniedGate(title,msg){
+  return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:24px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:8px">${msg}</p>
+    <p style="font-size:13px;margin-top:10px">Signed in as <b>${String(ME&&ME.name||'').replace(/</g,'&lt;')}</b>.</p>
+    <button class="btn" onclick="doLogout()">Sign out</button></div></div>`;
+}
+/* keep data fresh without a manual reload */
+function softRefresh(){
+  if(!ME||document.hidden)return;
+  loadState().then(()=>{
+    if(document.querySelector('#overlay .sheet'))return;
+    if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName))return;
+    render();
+  }).catch(()=>{});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefresh()});
+setInterval(softRefresh,60000);
+async function boot(){try{await loadState()}catch(e){}BOOTING=false;render()}
 
-/* =============== data =============== */
+const PAGE='admin';
 const TODAY=todayISO();
-const ADMIN={id:'',name:'Administrator',role:'HR Admin'};
 const TL={annual:'Annual',sick:'Sick',casual:'Casual'};
 let teams,emps,holidays,teamLeads,att,imports,audit;
 function bind(){teams=DB.teams;emps=DB.emps;holidays=DB.holidays;teamLeads=DB.teamLeads;att=DB.att;imports=DB.imports;audit=DB.audit}
 bind();
-function persist(){const f=readStore();if(f){DB.reqs=f.reqs;DB.seq=f.seq}DB.teams=teams;DB.emps=emps;DB.holidays=holidays;DB.teamLeads=teamLeads;DB.att=att;DB.imports=imports;DB.audit=audit;saveDB()}
+function persist(){}
 const STATUSES=['present','late','absent','half_day','wfh','leave'];
 const SNAME={present:'Present',late:'Late',absent:'Absent',half_day:'Half day',wfh:'WFH',leave:'On leave'};
 const SCOL={present:'var(--green)',late:'var(--amber)',absent:'var(--red)',half_day:'var(--blue)',wfh:'var(--plum)',leave:'var(--brand)'};
@@ -321,7 +400,7 @@ const nowStamp=()=>TODAY+' '+new Date().toTimeString().slice(0,5);
 const ini=n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
 const byId=id=>emps.find(e=>e.id===id);
 const nameOf=id=>byId(id)?byId(id).name:'—';
-function log(a,d){audit.unshift({a,d,t:nowStamp()});persist()}
+function log(){}
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('.phone').appendChild(t);setTimeout(()=>t.remove(),2800)}
 function closeSheet(){$('#overlay').innerHTML=''}
 function sheet(html){$('#overlay').innerHTML=`<div class="scrim" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="grab"></div>${html}</div></div>`}
@@ -370,7 +449,7 @@ function vDashboard(){
   const inactiveReports=active.filter(e=>e.mgr&&!byId(e.mgr).active);
   if(inactiveReports.length)alerts.push(`${inactiveReports.length} employee(s) report to an inactive manager`);
   const next=holidays.filter(h=>h.d>=TODAY).sort((a,b)=>a.d.localeCompare(b.d))[0];
-  return `<header class="top"><div class="t"><small>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</small><h1>Hello, ${esc(ADMIN.name.split(' ')[0])}</h1></div><button class="avatar" onclick="toast('Signed in as ${esc(ADMIN.role)}')">${ini(ADMIN.name)}</button></header>
+  return `<header class="top"><div class="t"><small>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</small><h1>Hello, ${esc((ME?ME.name:'').split(' ')[0])}</h1></div><button class="avatar" onclick="toast('Signed in as ${'Admin'}')">${ini(ME?ME.name:'A')}</button></header>
   <div class="kpis">
     <div class="kpi g"><small>Active employees</small><b>${active.length}</b></div>
     <div class="kpi"><small>On leave today</small><b style="color:var(--brand)">${onLeave.length}</b></div>
@@ -435,6 +514,7 @@ function openEmp(id){
    <div class="two"><div><label class="f">Employee ID</label><input class="in" id="f_code" value="${esc(e.id)}" ${id?'readonly':''}></div>
    <div><label class="f">Designation</label><input class="in" id="f_desig" value="${esc(e.desig)}"></div></div>
    <label class="f">Work email</label><input class="in" id="f_email" type="email" value="${esc(e.email)}">
+   <label class="f">${id?'Reset password <small style="color:var(--mute)">(optional)</small>':'Temporary password'}</label><input class="in" id="f_pw" type="password" autocomplete="new-password" placeholder="At least 8 characters">
    <div class="two"><div><label class="f">Role</label><select class="in" id="f_role">${['employee','manager','admin'].map(r=>`<option ${e.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
    <div><label class="f">Team</label><select class="in" id="f_team"><option value="">— No team —</option>${teams.map(t=>`<option ${e.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div></div>
    <label class="f">Reporting manager</label><select class="in" id="f_mgr"><option value="">— None —</option>${mgrs.map(m=>`<option value="${m.id}" ${e.mgr===m.id?'selected':''}>${esc(m.name)} (${esc(m.team)})</option>`).join('')}</select>
@@ -442,26 +522,25 @@ function openEmp(id){
    <div id="f_err"></div>
    <button class="btn" onclick="saveEmp(${id?`'${id}'`:'null'})">${id?'Save changes':'Create employee'}</button>`);
 }
-function saveEmp(id){
+async function saveEmp(id){
   const v=k=>$('#f_'+k).value.trim();
-  const d={name:v('name'),email:v('email').toLowerCase(),desig:v('desig'),role:v('role'),team:v('team'),mgr:v('mgr')||null,active:$('#f_active').classList.contains('on')};
+  const d={name:v('name'),email:v('email').toLowerCase(),desig:v('desig'),role:v('role'),team:v('team'),mgr:v('mgr')||null,active:$('#f_active').classList.contains('on'),password:$('#f_pw').value};
   const code=id||v('code').toUpperCase();
-  const fail=m=>{$('#f_err').innerHTML=`<div class="err">${m}</div>`};
+  const fail=m=>{$('#f_err').innerHTML=`<div class="err">${esc(m)}</div>`};
   if(!d.name)return fail('Name is required.');
   if(!/^EMP-\d+$/.test(code))return fail('Employee ID must look like EMP-1234.');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email))return fail('Enter a valid email address.');
-  if(!id&&byId(code))return fail('That employee ID already exists.');
-  if(emps.some(e=>e.email===d.email&&e.id!==code))return fail('That email is already used by another employee.');
   if(d.role!=='admin'&&!d.mgr)return fail('Managers and employees need a reporting manager.');
+  if(!id&&d.password.length<8)return fail('Set a temporary password of at least 8 characters.');
   if(id){
     const e=byId(id);
     if(!d.active&&e.active&&descendants(id).some(x=>byId(x).active)&&!confirm('This person still has active direct/indirect reports. Deactivate anyway? Their reports will need a new manager.'))return;
-    const ch=['name','email','desig','role','team','mgr','active'].filter(k=>e[k]!==d[k]);
-    Object.assign(e,d); log('Employee updated',`${e.name} · changed ${ch.join(', ')||'nothing'}`); toast('Employee updated');
-  }else{
-    emps.push({id:code,...d}); log('Employee added',`${d.name} (${code}) · ${d.role} · ${d.team}`); toast(`${d.name} added`);
   }
-  closeSheet();render();
+  try{
+    if(id)await api('PUT','/api/employees/'+encodeURIComponent(id),d);
+    else await api('POST','/api/employees',{id:code,...d});
+    await loadState();closeSheet();render();toast(id?'Employee updated':`${d.name} added`);
+  }catch(err){fail(err.message)}
 }
 
 /* =============== teams & reporting =============== */
@@ -478,11 +557,14 @@ function vTeams(){
     return `<div class="card"><div class="row" style="margin-bottom:10px"><div class="avatar" style="flex:none;width:36px;height:36px;font-size:12px">${ini(e.name)}</div><div style="flex:1;min-width:0"><b style="font-size:14px">${esc(e.name)}</b><br><small style="color:var(--mute)">${esc(e.team)} · ${esc(e.desig)}</small></div></div>
       <select class="in" ${e.role==='admin'&&!e.mgr?'':''} onchange="setMgr('${e.id}',this.value)"><option value="">— None —</option>${opts.map(m=>`<option value="${m.id}" ${e.mgr===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></div>`}).join('')}</div>`;
 }
-function setMgr(id,val){
+async function setMgr(id,val){
   const e=byId(id);
   if(!val&&e.role!=='admin'){toast('Only admins can have no reporting manager');render();return}
-  const old=e.mgr; e.mgr=val||null;
-  log('Reporting manager changed',`${e.name}: ${nameOf(old)} → ${val?nameOf(val):'None'}`); toast(`${e.name} now reports to ${val?nameOf(val):'no one'}`);
+  try{
+    if(val)await api('POST','/api/employees/bulk',{ids:[id],mgr:val});
+    else await api('PUT','/api/employees/'+encodeURIComponent(id),{name:e.name,email:e.email,desig:e.desig,role:e.role,team:e.team,mgr:null,active:e.active});
+    await loadState();render();toast(`${e.name} now reports to ${val?nameOf(val):'no one'}`);
+  }catch(err){toast(err.message);try{await loadState()}catch(_){}render()}
 }
 function openTeam(ti){
   const name=ti===null?null:teams[ti];
@@ -493,17 +575,21 @@ function openTeam(ti){
    <button class="btn" onclick="saveTeam(${ti})">${name?'Save':'Create team'}</button>
    ${name?`<button class="btn ghost" ${members?'disabled style="opacity:.5"':''} onclick="delTeam(${ti})">${members?`Can’t delete (${members} members)`:'Delete team'}</button>`:''}`);
 }
-function saveTeam(ti){
+async function saveTeam(ti){
   const old=ti===null?null:teams[ti];
   const n=$('#t_name').value.trim();
-  const fail=m=>{$('#t_err').innerHTML=`<div class="err">${m}</div>`};
+  const fail=m=>{$('#t_err').innerHTML=`<div class="err">${esc(m)}</div>`};
   if(!n)return fail('Team name is required.');
-  if(teams.some(t=>t.toLowerCase()===n.toLowerCase()&&t!==old))return fail('A team with this name already exists.');
-  if(old){teams[teams.indexOf(old)]=n;emps.forEach(e=>{if(e.team===old)e.team=n});if(teamLeads[old]){teamLeads[n]=teamLeads[old];delete teamLeads[old]}log('Team renamed',`${old} → ${n}`)}
-  else{teams.push(n);log('Team created',n)}
-  closeSheet();render();toast(old?'Team updated':'Team created');
+  try{
+    if(old)await api('POST','/api/teams/rename',{old,name:n});else await api('POST','/api/teams',{name:n});
+    await loadState();closeSheet();render();toast(old?'Team updated':'Team created');
+  }catch(err){fail(err.message)}
 }
-function delTeam(ti){const n=teams[ti];teams=teams.filter(t=>t!==n);delete teamLeads[n];log('Team deleted',n);closeSheet();tab='teams';render();toast('Team deleted')}
+async function delTeam(ti){
+  const n=teams[ti];
+  try{await api('POST','/api/teams/delete',{name:n});await loadState();closeSheet();tab='teams';render();toast('Team deleted')}
+  catch(err){toast(err.message)}
+}
 
 /* ---- team detail ---- */
 function leadOf(t){const id=teamLeads[t];const e=id&&byId(id);return e&&e.active&&e.team===t?e:null}
@@ -534,23 +620,14 @@ function vTeam(){
 }
 function toggleSel(id){sel.has(id)?sel.delete(id):sel.add(id);render()}
 function selAll(on){const t=teams[curTeam];sel=new Set(on?emps.filter(e=>e.team===t&&e.active).map(e=>e.id):[]);render()}
-function setLead(id){
+async function setLead(id){
   const t=teams[curTeam];
-  if(id)teamLeads[t]=id;else delete teamLeads[t];
-  log('Team lead changed',`${t}: ${id?nameOf(id):'not set'}`);toast(id?`${nameOf(id)} is now lead of ${t}`:'Team lead cleared');render();
+  try{await api('POST','/api/teams/lead',{team:t,lead:id||null});await loadState();toast(id?`${nameOf(id)} is now lead of ${t}`:'Team lead cleared');render()}
+  catch(err){toast(err.message);render()}
 }
 function mgrOptions(excl,pre){
   return emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!excl.includes(m.id))
     .map(m=>`<option value="${m.id}" ${m.id===pre?'selected':''}>${esc(m.name)} (${esc(m.team)})</option>`).join('');
-}
-function applyMgr(ids,mgr){
-  let ok=0,skip=[];
-  ids.forEach(id=>{
-    const e=byId(id);
-    if(id===mgr||descendants(id).includes(mgr)){skip.push(e.name);return}
-    e.mgr=mgr;ok++;
-  });
-  return {ok,skip};
 }
 function openAdd(){
   addSel=new Set();addQ='';
@@ -571,15 +648,17 @@ function drawAdd(){
   drawAddBtn();
 }
 function drawAddBtn(){const b=$('#addbtn');b.textContent=addSel.size?`Add ${addSel.size} member${addSel.size===1?'':'s'}`:'Add members'}
-function doAdd(){
+async function doAdd(){
   const t=teams[curTeam];
   if(!addSel.size){$('#add_err').innerHTML='<div class="err">Select at least one person.</div>';return}
   const mgr=$('#add_mgr').value;const ids=[...addSel];
-  ids.forEach(id=>{byId(id).team=t});
-  let note='';
-  if(mgr){const r=applyMgr(ids,mgr);note=` · manager ${nameOf(mgr)}`+(r.skip.length?` (skipped: ${r.skip.join(', ')})`:'')}
-  log('Members added to team',`${t}: ${ids.map(nameOf).join(', ')}${note}`);
-  closeSheet();render();toast(`${ids.length} added to ${t}`);
+  try{
+    await api('POST','/api/employees/bulk',{ids,team:t});
+    let skipped=[];
+    if(mgr){const r=await api('POST','/api/employees/bulk',{ids,mgr});skipped=r.skipped||[]}
+    await loadState();closeSheet();render();
+    toast(`${ids.length} added to ${t}${skipped.length?` · manager not set for ${skipped.length}`:''}`);
+  }catch(err){$('#add_err').innerHTML=`<div class="err">${esc(err.message)}</div>`}
 }
 function openBulkMgr(){
   const t=teams[curTeam],ids=[...sel],lead=leadOf(t);
@@ -592,13 +671,15 @@ function openBulkMgr(){
    <div id="bm_err"></div>
    <button class="btn" onclick="doBulkMgr()">Apply to ${ids.length}</button>`);
 }
-function doBulkMgr(){
+async function doBulkMgr(){
   const mgr=$('#bm_mgr').value;
   if(!mgr){$('#bm_err').innerHTML='<div class="err">Choose a manager.</div>';return}
-  const ids=[...sel];const r=applyMgr(ids,mgr);
-  log('Reporting manager changed (bulk)',`${nameOf(mgr)} now manages ${ids.filter(i=>byId(i).mgr===mgr).map(nameOf).join(', ')}`);
-  sel=new Set();closeSheet();render();
-  toast(`${r.ok} now report to ${nameOf(mgr)}${r.skip.length?` · skipped ${r.skip.length}`:''}`);
+  const ids=[...sel];
+  try{
+    const r=await api('POST','/api/employees/bulk',{ids,mgr});
+    sel=new Set();await loadState();closeSheet();render();
+    toast(`${r.updated} now report to ${nameOf(mgr)}${r.skipped.length?` · skipped ${r.skipped.length}`:''}`);
+  }catch(err){$('#bm_err').innerHTML=`<div class="err">${esc(err.message)}</div>`}
 }
 function openMoveOut(){
   const t=teams[curTeam],ids=[...sel],others=teams.filter(x=>x!==t);
@@ -609,11 +690,10 @@ function openMoveOut(){
    <select class="in" id="mo_team">${others.map(x=>`<option>${esc(x)}</option>`).join('')}</select>
    <button class="btn" onclick="doMoveOut()">Move ${ids.length}</button>`);
 }
-function doMoveOut(){
-  const t=teams[curTeam],dest=$('#mo_team').value,ids=[...sel];
-  ids.forEach(id=>{byId(id).team=dest});
-  log('Members moved between teams',`${ids.map(nameOf).join(', ')}: ${t} → ${dest}`);
-  sel=new Set();closeSheet();render();toast(`${ids.length} moved to ${dest}`);
+async function doMoveOut(){
+  const dest=$('#mo_team').value,ids=[...sel];
+  try{await api('POST','/api/employees/bulk',{ids,team:dest});sel=new Set();await loadState();closeSheet();render();toast(`${ids.length} moved to ${dest}`)}
+  catch(err){toast(err.message)}
 }
 
 /* =============== attendance + CSV =============== */
@@ -667,13 +747,13 @@ function analyse(text,fileName){
 }
 function loadText(text,name){pend=analyse(text,name);render();$('#view').scrollTo({top:0})}
 function pickFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>loadText(String(rd.result),f.name);rd.readAsText(f)}
-function confirmImport(){
+async function confirmImport(){
   if(!pend||!pend.valid.length)return;
-  const id='IMP-'+String((imports.length?Math.max(...imports.map(i=>+i.id.split('-')[1])):0)+1).padStart(4,'0');
-  pend.valid.forEach(r=>{att[r.code+'|'+r.date]={s:r.s,in:r.in,out:r.out,batch:id}});
-  imports.unshift({id,file:pend.file,by:ADMIN.name,at:nowStamp(),total:pend.total,valid:pend.valid.length,errors:pend.errors.length,overwritten:pend.overwrite});
-  log(`Attendance import ${id}`,`${pend.file} · ${pend.valid.length} saved, ${pend.errors.length} skipped`);
-  toast(`${id}: ${pend.valid.length} records saved`); pend=null; render();
+  const rows=[...pend.valid,...pend.errors].sort((x,y)=>x.n-y.n).map(r=>({n:r.n,code:r.code,date:r.date,s:r.s,in:r.in,out:r.out}));
+  try{
+    const r=await api('POST','/api/attendance/import',{file:pend.file,rows});
+    pend=null;await loadState();render();toast(`${r.id}: ${r.valid} records saved`);
+  }catch(err){toast(err.message)}
 }
 function vAttendance(){
   const p=pend;
@@ -728,16 +808,19 @@ function openHol(d){
    <button class="btn" onclick="saveHol(${d?`'${d}'`:'null'})">${d?'Save':'Add holiday'}</button>
    ${d?`<button class="btn ghost" onclick="delHol('${d}')">Delete holiday</button>`:''}`);
 }
-function saveHol(old){
+async function saveHol(old){
   const d=$('#h_d').value,n=$('#h_n').value.trim();
-  const fail=m=>{$('#h_err').innerHTML=`<div class="err">${m}</div>`};
+  const fail=m=>{$('#h_err').innerHTML=`<div class="err">${esc(m)}</div>`};
   if(!d||!n)return fail('Date and name are required.');
-  if(holidays.some(h=>h.d===d&&h.d!==old))return fail(`${fmt(d)} already has a holiday: ${holidays.find(h=>h.d===d).n}.`);
-  if(old){const h=holidays.find(x=>x.d===old);log('Holiday updated',`${h.n} → ${n} · ${fmt(d)}`);h.d=d;h.n=n}
-  else{holidays.push({d,n});log('Holiday added',`${n} · ${fmt(d,{day:'numeric',month:'short',year:'numeric'})}`)}
-  closeSheet();render();toast(old?'Holiday updated':'Holiday added');
+  try{await api('POST','/api/holidays',{d,n,old});await loadState();closeSheet();render();toast(old?'Holiday updated':'Holiday added')}
+  catch(err){fail(err.message)}
 }
-function delHol(d){const h=holidays.find(x=>x.d===d);if(!confirm(`Delete “${h.n}”? Leave day counts for new requests will include this date.`))return;holidays=holidays.filter(x=>x.d!==d);log('Holiday deleted',`${h.n} · ${fmt(d)}`);closeSheet();render();toast('Holiday deleted')}
+async function delHol(d){
+  const h=holidays.find(x=>x.d===d);
+  if(!confirm(`Delete “${h.n}”? Leave day counts for new requests will include this date.`))return;
+  try{await api('POST','/api/holidays/delete',{d});await loadState();closeSheet();render();toast('Holiday deleted')}
+  catch(err){toast(err.message)}
+}
 
 /* =============== organization =============== */
 function node(e,depth){
@@ -788,18 +871,26 @@ function exportReport(){
   const act=emps.filter(e=>e.active&&(repTeam==='All'||e.team===repTeam));
   const rows=act.map(e=>{const s=monthStats([e]);return [e.id,e.name,e.team,s.c.present,s.c.late,s.c.wfh,s.c.half_day,s.c.leave,s.c.absent].join(',')});
   download('attendance_summary_'+TODAY.slice(0,7)+'.csv','emp_code,name,team,present,late,wfh,half_day,leave,absent\n'+rows.join('\n'));
-  log('Report exported',`Attendance summary · ${repTeam}`);toast('Report downloaded');
+  toast('Report downloaded');
 }
 
 /* =============== more (mobile) + shell =============== */
 function openMore(){
   const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['reports','Reports','chart'],['activity','Activity log','log']];
   sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>${it.map(([k,l,i])=>`<div class="more" onclick="go('${k}')">${ic(i)}<span>${l}</span>${ic('right')}</div>`).join('')}
-   <div class="more" style="color:var(--red);border:none" onclick="toast('Signed out (demo)');closeSheet()">${ic('out')}<span>Sign out</span></div>`);
+   <div class="more" style="color:var(--red);border:none" onclick="closeSheet();doLogout()">${ic('out')}<span>Sign out</span></div>`);
 }
 const VIEWS={dashboard:vDashboard,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
+function onAuthed(){tab='dashboard';render()}
 function render(){
-  reloadDB();bind();
+  if(!ME||ME.role!=='admin'){
+    $('#nav').style.display='none';
+    $('#view').innerHTML=(ME&&ME.role!=='admin')?deniedGate('Admins only','Your account doesn’t have admin access. Ask an administrator, or use the employee or manager app.')
+      :loginGate('Admin sign in','Sign in with your administrator account.','');
+    return;
+  }
+  $('#nav').style.display='';
+  bind();
   const st=$('#view').scrollTop;
   const cur=tab==='team'?'teams':tab;
   $('#view').innerHTML='<div class="page'+(['org','activity','team'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
@@ -809,10 +900,9 @@ function render(){
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'
    +items.map(([k,l,i,c])=>`<button class="${cur===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')
    +`<button class="mOnly ${['teams','org','reports','activity'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
-   +`<button class="sidelink" onclick="toast('Signed out (demo)')">${ic('out')}Sign out</button>`;
+   +`<button class="sidelink" onclick="doLogout()">${ic('out')}Sign out</button>`;
 }
-window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&!document.querySelector('#overlay .sheet')&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))render()});
-render();
+boot();
 </script>
 </body>
 </html>

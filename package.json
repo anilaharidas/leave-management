@@ -1,0 +1,17 @@
+{
+  "name": "leave-management",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "migrate:local": "wrangler d1 migrations apply leave-management --local",
+    "migrate:remote": "wrangler d1 migrations apply leave-management --remote",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

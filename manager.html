@@ -250,6 +250,14 @@ nav button .nb{position:absolute;top:0;left:calc(50% + 6px);background:var(--red
 .dayc{display:flex;gap:2px;position:absolute;bottom:4px}
 .dayc i{width:5px;height:5px;border-radius:50%;background:var(--brand)}
 .dayc i.p{background:var(--amber)}.dayc i.w{background:var(--plum)}
+
+/* sign-in gate + notices */
+.gate{min-height:100%;display:grid;place-items:center;padding:20px}
+.gate .card{width:100%;max-width:400px;padding:24px}
+.gate .logo{width:48px;height:48px;border-radius:14px;background:var(--grad);color:#fff;display:grid;place-items:center;font-family:Fraunces,serif;font-size:22px;margin-bottom:14px}
+.lock{display:flex;gap:10px;align-items:center;padding:11px 13px;border-radius:12px;background:var(--brand-l);color:var(--brand-d);font-size:13px;margin:14px 0 0}
+.warnbox{background:var(--amber-l);color:var(--amber);padding:12px 14px;border-radius:14px;font-size:13px;font-weight:500;margin-bottom:12px}
+.btn:disabled{cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -260,26 +268,99 @@ nav button .nb{position:absolute;top:0;left:calc(50% + 6px);background:var(--red
 </div>
 
 <script>
-/* =============== shared browser store (stand-in until the D1 backend exists) =============== */
-const STORE_KEY='leavedesk.v1';
-const INDIA_2026=[['2026-01-01','New Year’s Day'],['2026-01-26','Republic Day'],['2026-03-04','Holi'],['2026-05-01','Labour Day'],['2026-08-15','Independence Day'],['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']];
+/* =============== API client (talks to the Cloudflare Worker + D1) =============== */
 const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
-function blankDB(){return {v:1,teams:[],emps:[],teamLeads:{},holidays:INDIA_2026.map(([d,n])=>({d,n})),reqs:[],att:{},imports:[],audit:[],seq:{LV:0,WFH:0}}}
-function readStore(){try{const d=JSON.parse(localStorage.getItem(STORE_KEY));if(d&&d.v===1)return d}catch(e){}return null}
-let DB=Object.assign(blankDB(),readStore()||{});
-function saveDB(){try{localStorage.setItem(STORE_KEY,JSON.stringify(DB))}catch(e){}}
-function reloadDB(){const d=readStore();if(d){DB=Object.assign(blankDB(),d);return true}return false}
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-function stamp(){return todayISO()+' '+new Date().toTimeString().slice(0,5)}
-function nextReqNo(kind){const k=kind==='wfh'?'WFH':'LV';DB.seq[k]=(DB.seq[k]||0)+1;return `${k}-${new Date().getFullYear()}-${String(DB.seq[k]).padStart(4,'0')}`}
+async function api(method,url,body){
+  let r;
+  try{r=await fetch(url,{method,credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})}
+  catch(e){const err=new Error('Can’t reach the server. Check your connection and try again.');err.status=0;throw err}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof render==='function')render()},0)}
+    throw err;
+  }
+  return j;
+}
+async function loadState(){
+  try{
+    const s=await api('GET','/api/state');
+    ME=s.me;
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
+    return true;
+  }catch(e){
+    if(e.status===401){ME=null;DB=blankDB();try{NEEDS_SETUP=(await api('GET','/api/auth/status')).needsSetup}catch(_){}return false}
+    throw e;
+  }
+}
 function usedDays(empId,type){const y=todayISO().slice(0,4);return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Approved'&&r.from.startsWith(y)).reduce((a,r)=>a+r.days,0)}
 function pendingDays(empId,type){return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Pending').reduce((a,r)=>a+r.days,0)}
+
+/* ---- sign in / first-time setup ---- */
+function loginGate(title,sub,note){
+  if(BOOTING)return `<div class="gate"><div class="card" style="text-align:center;color:var(--mute)">Loading…</div></div>`;
+  const logo='<div class="logo">L</div>';
+  if(NEEDS_SETUP){
+    if(typeof PAGE!=='undefined'&&PAGE==='admin')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Set up LeaveDesk</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:6px">Create the first administrator account. You can add everyone else afterwards.</p>
+      <label class="f">Your name</label><input class="in" id="s_name" autocomplete="name">
+      <label class="f">Email</label><input class="in" type="email" id="s_email" autocomplete="username">
+      <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
+      <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
+    return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Not set up yet</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:8px">The administrator needs to finish setup first.</p>
+      <a class="btn" style="display:block;text-align:center;text-decoration:none" href="admin.html">Open Admin</a></div></div>`;
+  }
+  return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>
+    ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
+    <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
+    <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button></div></div>`;
+}
+function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
+async function submitLogin(){
+  const email=document.getElementById('g_email').value.trim(),pw=document.getElementById('g_pw').value;
+  if(!email||!pw)return gateError('Enter your email and password.');
+  const b=document.getElementById('g_btn');b.disabled=true;
+  try{await api('POST','/api/auth/login',{email,password:pw});await loadState();afterAuth()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+async function submitSetup(){
+  const name=document.getElementById('s_name').value.trim(),email=document.getElementById('s_email').value.trim(),pw=document.getElementById('s_pw').value;
+  if(!name||!email||pw.length<8)return gateError('Enter your name, a valid email and a password of at least 8 characters.');
+  try{await api('POST','/api/auth/setup',{name,email,password:pw});NEEDS_SETUP=false;await loadState();afterAuth()}
+  catch(e){gateError(e.message)}
+}
+function afterAuth(){if(typeof onAuthed==='function')onAuthed();else render()}
+async function doLogout(){try{await api('POST','/api/auth/logout',{})}catch(e){}ME=null;DB=blankDB();try{closeSheet()}catch(e){}render()}
+function deniedGate(title,msg){
+  return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:24px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:8px">${msg}</p>
+    <p style="font-size:13px;margin-top:10px">Signed in as <b>${String(ME&&ME.name||'').replace(/</g,'&lt;')}</b>.</p>
+    <button class="btn" onclick="doLogout()">Sign out</button></div></div>`;
+}
+/* keep data fresh without a manual reload */
+function softRefresh(){
+  if(!ME||document.hidden)return;
+  loadState().then(()=>{
+    if(document.querySelector('#overlay .sheet'))return;
+    if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName))return;
+    render();
+  }).catch(()=>{});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefresh()});
+setInterval(softRefresh,60000);
+async function boot(){try{await loadState()}catch(e){}BOOTING=false;render()}
 
 /* =============== manager app =============== */
 const TODAY=todayISO();
 const TOTALS={annual:LEAVE_TYPES.annual.total,sick:LEAVE_TYPES.sick.total,casual:LEAVE_TYPES.casual.total};
 const TLABEL={annual:'Annual',sick:'Sick',casual:'Casual'};
-const SESSION_KEY='leavedesk.manager';
+const PAGE='manager';
 const $=s=>document.querySelector(s);
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const P=s=>new Date(s+'T00:00');
@@ -310,11 +391,10 @@ const ic=n=>`<svg viewBox="0 0 24 24">${ICON[n]}</svg>`;
 
 /* =============== state =============== */
 let meId=null;
-try{meId=localStorage.getItem(SESSION_KEY)}catch(e){}
 let tab='home', pendingLink=null;
 let apFilter='Pending', apKind='All';
 let calMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1), calSel=null;
-const me=()=>DB.emps.find(e=>e.id===meId&&e.active&&['manager','admin'].includes(e.role))||null;
+const me=()=>ME&&['manager','admin'].includes(ME.role)?ME:null;
 const mine=()=>DB.reqs.filter(r=>r.appr===meId);
 const team=()=>DB.emps.filter(p=>p.mgr===meId&&p.active);
 const remaining=(p,type)=>TOTALS[type]-usedDays(p.id,type);
@@ -327,30 +407,14 @@ function readHash(){
 }
 window.addEventListener('hashchange',()=>{readHash();if(me()&&pendingLink){render();openReview(pendingLink)}else render()});
 function vGate(){
-  const list=DB.emps.filter(e=>e.active&&['manager','admin'].includes(e.role));
-  if(!list.length)return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:26px">No managers yet</h1>
-    <p style="color:var(--mute);font-size:14px;margin-top:8px">An admin needs to add a manager (an employee with the Manager role) before anyone can sign in here.</p>
-    <a class="btn" style="display:block;text-align:center;text-decoration:none" href="admin.html">Open Admin</a></div></div>`;
-  return `<div class="gate"><div class="card">
-    <div class="logo">L</div>
-    <h1 style="font-size:26px">Manager sign in</h1>
-    <p style="color:var(--mute);font-size:14px;margin-top:6px">${pendingLink?`You opened a review link for <b>${esc(pendingLink)}</b>. Sign in to continue.`:'Sign in to review your team’s requests.'}</p>
-    <div class="lock">${ic('lock')}<span>The link alone gives no access. After sign-in we check that <b>you</b> are the assigned approver.</span></div>
-    <label class="f">Sign in as <small style="color:var(--mute)">(demo)</small></label>
-    <select class="in" id="g_user">${list.map(m=>`<option value="${esc(m.id)}">${esc(m.name)} · ${esc(m.team||'No team')}</option>`).join('')}</select>
-    <label class="f">Password</label>
-    <input class="in" type="password" id="g_pw" placeholder="Demo: any value" onkeydown="if(event.key==='Enter')signIn()">
-    <div id="g_err"></div>
-    <button class="btn" onclick="signIn()">Sign in</button>
-  </div></div>`;
+  if(ME&&!me())return deniedGate('This page is for managers','Your account doesn’t have the manager role. Use the employee app instead.');
+  return loginGate('Manager sign in',pendingLink?`You opened a review link for <b>${esc(pendingLink)}</b>. Sign in to continue.`:'Sign in to review your team’s requests.',
+    'The link alone gives no access. After sign-in we check that <b>you</b> are the assigned approver.');
 }
-function signIn(){
-  if(!$('#g_pw').value){$('#g_err').innerHTML='<div class="err">Enter your password.</div>';return}
-  meId=$('#g_user').value;try{localStorage.setItem(SESSION_KEY,meId)}catch(e){}
-  tab='home';render();
-  if(pendingLink){tab='approvals';apFilter='All';render();openReview(pendingLink)}
+function onAuthed(){
+  tab='home';
+  if(pendingLink){tab='approvals';apFilter='All';render();openReview(pendingLink)}else render();
 }
-function signOut(){meId=null;try{localStorage.removeItem(SESSION_KEY)}catch(e){}closeSheet();try{history.replaceState(null,'',location.pathname)}catch(e){}pendingLink=null;render()}
 
 /* =============== home =============== */
 function status(p,ds){
@@ -459,26 +523,23 @@ function copyLink(no){
   const url=location.href.split('#')[0]+'#/review/'+no;
   (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>toast('Link copied. Opening it still requires sign-in.'),()=>toast(url));
 }
-function decide(no,status,extra){
-  reloadDB();
-  const r=DB.reqs.find(x=>x.no===no);
-  if(!r||r.appr!==meId){toast('Not authorized');return null}
-  if(r.status!=='Pending'){toast(`Already ${r.status.toLowerCase()}`);closeSheet();render();return null}
-  r.status=status;r.hist.push([`${status} by ${me().name}`,stamp()]);Object.assign(r,extra||{});saveDB();return r;
-}
-function doApprove(no){
-  reloadDB();
+async function doApprove(no){
   const r0=DB.reqs.find(x=>x.no===no);if(!r0)return;
   const p=person(r0.emp);
   if(r0.kind==='leave'&&r0.days>remaining(p,r0.type)){toast('Insufficient balance');return}
-  const r=decide(no,'Approved');if(!r)return;
-  closeSheet();render();toast(`Approved. ${p.name.split(' ')[0]} has been notified.`);
+  try{
+    await api('POST',`/api/requests/${encodeURIComponent(no)}/approve`,{});
+    await loadState();closeSheet();render();toast(`Approved. ${p.name.split(' ')[0]} has been notified.`);
+  }catch(err){toast(err.message);try{await loadState()}catch(_){}closeSheet();render()}
 }
-function doReject(no){
+async function doReject(no){
   const t=$('#rj_text').value.trim();
   if(!t){$('#rj_err').innerHTML='<div class="err">A reason is required to reject.</div>';return}
-  const r=decide(no,'Rejected',{rej:t});if(!r)return;
-  closeSheet();render();toast(`Rejected. ${person(r.emp).name.split(' ')[0]} has been notified.`);
+  const r0=DB.reqs.find(x=>x.no===no);
+  try{
+    await api('POST',`/api/requests/${encodeURIComponent(no)}/reject`,{reason:t});
+    await loadState();closeSheet();render();toast(`Rejected. ${r0?person(r0.emp).name.split(' ')[0]:'The employee'} has been notified.`);
+  }catch(err){toast(err.message);try{await loadState()}catch(_){}closeSheet();render()}
 }
 
 /* =============== calendar =============== */
@@ -553,19 +614,19 @@ function vProfile(){
   <div class="card" style="margin-top:18px;padding:6px 16px">
    <div class="kv"><span>Employee ID</span><b>${esc(m.id)}</b></div><div class="kv"><span>Email</span><b>${esc(m.email)}</b></div>
    <div class="kv"><span>Team</span><b>${esc(m.team||'—')}</b></div><div class="kv"><span>Direct reports</span><b>${team().length}</b></div><div class="kv"><span>Role</span><b>${esc(m.role)}</b></div></div>
-  <button class="btn line" onclick="signOut()">Sign out</button>`;
+  <button class="btn line" onclick="doLogout()">Sign out</button>`;
 }
 function openMore(){
   sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>
    <div class="more" onclick="go('reports')">${ic('chart')}<span>Reports</span>${ic('right')}</div>
    <div class="more" onclick="go('profile')">${ic('user')}<span>Profile</span>${ic('right')}</div>
-   <div class="more" style="color:var(--red);border:none" onclick="signOut()">${ic('out')}<span>Sign out</span></div>`);
+   <div class="more" style="color:var(--red);border:none" onclick="doLogout()">${ic('out')}<span>Sign out</span></div>`);
 }
 const VIEWS={home:vHome,approvals:vApprovals,calendar:vCalendar,team:vTeam,reports:vReports,profile:vProfile};
 function render(){
-  reloadDB();
+  meId=ME?ME.id:null;
   const st=$('#view').scrollTop;
-  if(!me()){meId=null;$('#view').innerHTML=vGate();$('#nav').style.display='none';return}
+  if(!me()){$('#view').innerHTML=vGate();$('#nav').style.display='none';return}
   $('#nav').style.display='';
   $('#view').innerHTML='<div class="page'+(tab==='profile'?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
   $('#view').scrollTop=st;
@@ -574,10 +635,9 @@ function render(){
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Manager</span></div>'
    +items.map(([k,l,i,c])=>`<button class="${tab===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}${k==='approvals'&&pc?`<span class="nb">${pc}</span>`:''}</button>`).join('')
    +`<button class="mOnly ${['reports','profile'].includes(tab)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
-   +`<button class="sidelink" onclick="signOut()">${ic('out')}Sign out</button>`;
+   +`<button class="sidelink" onclick="doLogout()">${ic('out')}Sign out</button>`;
 }
-window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&me()&&!document.querySelector('#overlay .sheet')&&document.activeElement.tagName!=='TEXTAREA')render()});
-readHash();render();
+readHash();boot();
 
 </script>
 </body>

@@ -1,6 +1,19 @@
 ﻿{
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "leave-management",
+  "main": "src/index.js",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./dist" }
+  "assets": {
+    "directory": "./dist",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "leave-management",
+      "database_id": "5e8268dc-bd9f-4c84-89ed-67351bc25520",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
+
