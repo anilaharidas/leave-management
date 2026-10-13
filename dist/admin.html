@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -985,7 +985,6 @@ function openMore(){
   const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['reports','Reports','chart'],['activity','Activity log','log']];
   sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>${it.map(([k,l,i])=>`<div class="more" onclick="go('${k}')">${ic(i)}<span>${l}</span>${ic('right')}</div>`).join('')}
    <div class="more" onclick="go('profile')">${ic('right')}<span>Profile &amp; password</span>${ic('right')}</div>
-   ${viewLinks().map(([k,l,h])=>`<a class="more" href="${h}" style="text-decoration:none;color:inherit">${ic('right')}<span>Switch to ${l}</span>${ic('right')}</a>`).join('')}
    <div class="more" style="color:var(--red);border:none" onclick="closeSheet();doLogout()">${ic('out')}<span>Sign out</span></div>`);
 }
 function vProfile(){
@@ -1017,7 +1016,7 @@ function render(){
   const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'
    +items.map(([k,l,i,c])=>`<button class="${cur===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')
-   +viewNav()+`<button class="mOnly ${['teams','org','reports','activity','profile'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
+   +`<button class="mOnly ${['teams','org','reports','activity','profile'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
    +`<button class="sidelink ${cur==='profile'?'on':''}" onclick="go('profile')">${ic('users')}Profile</button>`
    +`<button class="sidelink" onclick="doLogout()">${ic('out')}Sign out</button>`;
 }
