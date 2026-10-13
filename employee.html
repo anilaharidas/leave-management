@@ -213,6 +213,8 @@ textarea.in{resize:none;height:90px}
 /* switch between views */
 nav a.vlink{display:none}
 @media(min-width:900px){nav a.vlink{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--mute);padding:12px 14px;border-radius:13px;text-decoration:none}nav a.vlink:hover{background:var(--brand-l)}}
+
+nav .sidelink+.sidelink{margin-top:0}
 </style>
 </head>
 <body>
@@ -325,7 +327,7 @@ function viewLinks(){
   return all.filter(([k])=>k!==PAGE&&ACCESS[k].includes(ME.role));
 }
 const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
-function onAuthed(){location.replace(nextTarget()||HOME[ME.role])}
+function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||HOME[ME.role])}
 async function boot(){
   try{await loadState()}catch(e){}
   BOOTING=false;
@@ -334,9 +336,80 @@ async function boot(){
     render();return;
   }
   if(!ME){goLogin();return}
+  if(ME.mustChange){location.replace('/');return}
   if(!ACCESS[PAGE].includes(ME.role)){location.replace(HOME[ME.role]);return}
   render();
 }
+
+/* ---- password change (forced after first login, or any time) ---- */
+function forcedPasswordGate(){
+  return `<div class="gate"><div class="card"><div class="logo">L</div>
+    <h1 style="font-size:24px">Choose your own password</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">You signed in with a temporary password. Set a new one to continue.</p>
+    <label class="f">Temporary password</label><input class="in" type="password" id="p_cur" autocomplete="current-password">
+    <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="p_new" autocomplete="new-password">
+    <label class="f">Confirm new password</label><input class="in" type="password" id="p_new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitForcedPassword()">
+    <div id="g_err"></div>
+    <button class="btn" id="p_btn" onclick="submitForcedPassword()">Save and continue</button>
+    <button class="btn ghost" style="color:var(--mute)" onclick="doLogout()">Sign out</button></div></div>`;
+}
+async function submitForcedPassword(){
+  const cur=document.getElementById('p_cur').value,n1=document.getElementById('p_new').value,n2=document.getElementById('p_new2').value;
+  if(!cur||!n1)return gateError('Fill in all the fields.');
+  if(n1.length<8)return gateError('New password must be at least 8 characters.');
+  if(n1!==n2)return gateError('The two new passwords don’t match.');
+  const b=document.getElementById('p_btn');b.disabled=true;
+  try{await api('POST','/api/auth/password',{current:cur,next:n1});await loadState();onAuthed()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+function openChangePassword(){
+  sheet(`<h2 style="font-size:22px">Change password</h2>
+   <label class="f">Current password</label><input class="in" type="password" id="cp_cur" autocomplete="current-password">
+   <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="cp_new" autocomplete="new-password">
+   <label class="f">Confirm new password</label><input class="in" type="password" id="cp_new2" autocomplete="new-password">
+   <div id="cp_err"></div>
+   <button class="btn" onclick="doChangePassword()">Update password</button>`);
+}
+async function doChangePassword(){
+  const f=id=>document.getElementById(id).value,err=m=>{document.getElementById('cp_err').innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`};
+  if(!f('cp_cur')||!f('cp_new'))return err('Fill in all the fields.');
+  if(f('cp_new').length<8)return err('New password must be at least 8 characters.');
+  if(f('cp_new')!==f('cp_new2'))return err('The two new passwords don’t match.');
+  try{await api('POST','/api/auth/password',{current:f('cp_cur'),next:f('cp_new')});closeSheet();toast('Password updated')}
+  catch(e){err(e.message)}
+}
+function openPhone(){
+  sheet(`<h2 style="font-size:22px">Your WhatsApp number</h2>
+   <p style="color:var(--mute);font-size:14px;margin-top:6px">Used so your manager or team can message you on WhatsApp about requests. Include the country code, for example 919876543210.</p>
+   <label class="f">WhatsApp number</label><input class="in" type="tel" id="ph_val" value="${String(ME&&ME.phone||'').replace(/"/g,'')}" placeholder="919876543210">
+   <div id="ph_err"></div><button class="btn" onclick="savePhone()">Save number</button>`);
+}
+async function savePhone(){
+  try{await api('POST','/api/me/phone',{phone:document.getElementById('ph_val').value});await loadState();closeSheet();render();toast('Number saved')}
+  catch(e){document.getElementById('ph_err').innerHTML=`<div class="err">${String(e.message).replace(/</g,'&lt;')}</div>`}
+}
+
+/* ---- WhatsApp: prefilled message, the person just presses send ---- */
+const waDigits=p=>String(p||'').replace(/\D/g,'');
+const waUrl=(phone,text)=>`https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(text)}`;
+const _fd=s=>new Date(s+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const waRange=r=>r.from===r.to?_fd(r.from):`${_fd(r.from)} – ${_fd(r.to)}`;
+const waKind=r=>r.kind==='wfh'?'work from home':((LEAVE_TYPES[r.type]||{label:'Leave'}).label.toLowerCase()+' leave');
+const reviewLink=no=>`${location.origin}/manager#/review/${no}`;
+function showWhatsApp(title,toName,phone,text){
+  const ok=waDigits(phone).length>=8, url=ok?waUrl(phone,text):'';
+  const safe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  sheet(`<div style="text-align:center;padding:6px 0">
+    <div style="width:60px;height:60px;border-radius:50%;background:var(--green-l);color:var(--green);display:grid;place-items:center;margin:0 auto 12px;font-size:28px">✓</div>
+    <h2 style="font-size:22px">${safe(title)}</h2>
+    ${ok?`<p style="color:var(--mute);font-size:14px;margin:8px 0 12px">Your message to ${safe(toName)} is ready in WhatsApp. Just press send there.</p>
+      <div class="card" style="text-align:left;font-size:14px;white-space:pre-wrap">${safe(text)}</div>
+      <a class="btn" style="display:block;text-decoration:none;text-align:center;background:#25D366;box-shadow:none" href="${url}" target="_blank" rel="noopener">Open WhatsApp</a>`
+     :`<p style="color:var(--mute);font-size:14px;margin:8px 0 12px">${safe(toName)} has no WhatsApp number saved, so a chat can’t be opened. Ask your admin to add it.</p>`}
+    <button class="btn ghost" style="color:var(--mute)" onclick="closeSheet()">Close</button></div>`);
+  if(ok){try{window.open(url,'_blank','noopener')}catch(e){}}
+}
+
 
 
 /* =============== employee app =============== */
@@ -467,7 +540,9 @@ async function submitReq(){
     const res=await api('POST','/api/requests',{kind:r.kind,type:isL?r.type:null,from:r.from,to,half:isL&&r.half,reason:r.reason.trim()});
     await loadState();
     frm={kind:r.kind,type:'annual',from:TODAY,to:TODAY,half:false,reason:'',err:''};
-    filter='All'; go('requests'); toast(`Request ${res.no} sent to ${mg.name}`);
+    filter='All'; go('requests');
+    const msg=`Hi ${mg.name.split(' ')[0]}, I’ve requested ${waKind({kind:r.kind,type:r.type})} for ${waRange({from:r.from,to})} (${res.days} day${res.days===1?'':'s'}).\nReason: ${r.reason.trim()}\nPlease review and approve or reject: ${reviewLink(res.no)}\n– ${ME.name}`;
+    showWhatsApp(`Request ${res.no} sent`,mg.name,mg.phone,msg);
   }catch(err){fail(err.message)}
 }
 function fail(m){frm.err=m;render();$('#view').scrollTo({top:9999,behavior:'smooth'})}
@@ -494,8 +569,13 @@ function openReq(no){
    <div class="sec" style="margin:18px 2px 6px"><h2 style="font-size:16px">History</h2></div>
    <div class="tl">${r.hist.map(([a,t])=>`<div style="--c:${colors[a.split(' ')[0]]||'var(--mute)'}">${esc(a)}<small>${esc(t)}</small></div>`).join('')}
      ${r.status==='Pending'?`<div style="--c:var(--line)"><span style="color:var(--mute)">Waiting for ${esc(ap?ap.name:'your manager')}…</span></div>`:''}</div>
-   ${r.status==='Pending'?`<button class="btn ghost" onclick="cancelReq('${r.no}')">Cancel request</button>`:''}
+   ${r.status==='Pending'?`<button class="btn" style="background:#25D366;box-shadow:none" onclick="nudgeManager('${r.no}')">Message manager on WhatsApp</button><button class="btn ghost" onclick="cancelReq('${r.no}')">Cancel request</button>`:''}
    ${r.status==='Rejected'?`<button class="btn" onclick="closeSheet();frm.kind='${r.kind}';go('apply')">Apply again</button>`:''}`);
+}
+function nudgeManager(no){
+  const r=DB.reqs.find(x=>x.no===no),mg=manager();if(!r||!mg)return;
+  const msg=`Hi ${mg.name.split(' ')[0]}, a reminder about my ${waKind(r)} request for ${waRange(r)} (${r.days} day${r.days===1?'':'s'}).\nPlease review: ${reviewLink(r.no)}\n– ${ME.name}`;
+  showWhatsApp('Message your manager',mg.name,mg.phone,msg);
 }
 async function cancelReq(no){
   try{await api('POST',`/api/requests/${encodeURIComponent(no)}/cancel`,{});await loadState();closeSheet();render();toast('Request cancelled')}
@@ -568,6 +648,8 @@ function vProfile(){
     <div class="kv"><span>Team</span><b>${esc(e.team||'—')}</b></div><div class="kv"><span>Reports to</span><b>${mg?esc(mg.name):'Not assigned'}</b></div></div>
   <div class="card" style="padding:0">
     ${viewLinks().map(([k,l,h])=>`<a class="menu" href="${h}" style="text-decoration:none;color:inherit">${ic('user')}<span>Switch to ${l}</span>${ic('right')}</a>`).join('')}
+    <div class="menu" onclick="openPhone()">${ic('help')}<span>WhatsApp number${ME.phone?' · '+esc(ME.phone):''}</span>${ic('right')}</div>
+    <div class="menu" onclick="openChangePassword()">${ic('lock')}<span>Change password</span>${ic('right')}</div>
     <div class="menu" onclick="toast('Contact HR to change your details')">${ic('help')}<span>Help & HR contact</span>${ic('right')}</div>
     <div class="menu" style="color:var(--red)" onclick="doLogout()">${ic('out')}<span>Sign out</span></div></div>`;
 }

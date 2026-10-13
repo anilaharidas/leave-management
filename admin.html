@@ -286,6 +286,8 @@ tr.bad td{background:var(--red-l)}
 /* switch between views */
 nav a.vlink{display:none}
 @media(min-width:900px){nav a.vlink{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--mute);padding:12px 14px;border-radius:13px;text-decoration:none}nav a.vlink:hover{background:var(--brand-l)}}
+
+nav .sidelink+.sidelink{margin-top:0}
 </style>
 </head>
 <body>
@@ -398,7 +400,7 @@ function viewLinks(){
   return all.filter(([k])=>k!==PAGE&&ACCESS[k].includes(ME.role));
 }
 const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
-function onAuthed(){location.replace(nextTarget()||HOME[ME.role])}
+function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||HOME[ME.role])}
 async function boot(){
   try{await loadState()}catch(e){}
   BOOTING=false;
@@ -407,9 +409,80 @@ async function boot(){
     render();return;
   }
   if(!ME){goLogin();return}
+  if(ME.mustChange){location.replace('/');return}
   if(!ACCESS[PAGE].includes(ME.role)){location.replace(HOME[ME.role]);return}
   render();
 }
+
+/* ---- password change (forced after first login, or any time) ---- */
+function forcedPasswordGate(){
+  return `<div class="gate"><div class="card"><div class="logo">L</div>
+    <h1 style="font-size:24px">Choose your own password</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">You signed in with a temporary password. Set a new one to continue.</p>
+    <label class="f">Temporary password</label><input class="in" type="password" id="p_cur" autocomplete="current-password">
+    <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="p_new" autocomplete="new-password">
+    <label class="f">Confirm new password</label><input class="in" type="password" id="p_new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitForcedPassword()">
+    <div id="g_err"></div>
+    <button class="btn" id="p_btn" onclick="submitForcedPassword()">Save and continue</button>
+    <button class="btn ghost" style="color:var(--mute)" onclick="doLogout()">Sign out</button></div></div>`;
+}
+async function submitForcedPassword(){
+  const cur=document.getElementById('p_cur').value,n1=document.getElementById('p_new').value,n2=document.getElementById('p_new2').value;
+  if(!cur||!n1)return gateError('Fill in all the fields.');
+  if(n1.length<8)return gateError('New password must be at least 8 characters.');
+  if(n1!==n2)return gateError('The two new passwords don’t match.');
+  const b=document.getElementById('p_btn');b.disabled=true;
+  try{await api('POST','/api/auth/password',{current:cur,next:n1});await loadState();onAuthed()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+function openChangePassword(){
+  sheet(`<h2 style="font-size:22px">Change password</h2>
+   <label class="f">Current password</label><input class="in" type="password" id="cp_cur" autocomplete="current-password">
+   <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="cp_new" autocomplete="new-password">
+   <label class="f">Confirm new password</label><input class="in" type="password" id="cp_new2" autocomplete="new-password">
+   <div id="cp_err"></div>
+   <button class="btn" onclick="doChangePassword()">Update password</button>`);
+}
+async function doChangePassword(){
+  const f=id=>document.getElementById(id).value,err=m=>{document.getElementById('cp_err').innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`};
+  if(!f('cp_cur')||!f('cp_new'))return err('Fill in all the fields.');
+  if(f('cp_new').length<8)return err('New password must be at least 8 characters.');
+  if(f('cp_new')!==f('cp_new2'))return err('The two new passwords don’t match.');
+  try{await api('POST','/api/auth/password',{current:f('cp_cur'),next:f('cp_new')});closeSheet();toast('Password updated')}
+  catch(e){err(e.message)}
+}
+function openPhone(){
+  sheet(`<h2 style="font-size:22px">Your WhatsApp number</h2>
+   <p style="color:var(--mute);font-size:14px;margin-top:6px">Used so your manager or team can message you on WhatsApp about requests. Include the country code, for example 919876543210.</p>
+   <label class="f">WhatsApp number</label><input class="in" type="tel" id="ph_val" value="${String(ME&&ME.phone||'').replace(/"/g,'')}" placeholder="919876543210">
+   <div id="ph_err"></div><button class="btn" onclick="savePhone()">Save number</button>`);
+}
+async function savePhone(){
+  try{await api('POST','/api/me/phone',{phone:document.getElementById('ph_val').value});await loadState();closeSheet();render();toast('Number saved')}
+  catch(e){document.getElementById('ph_err').innerHTML=`<div class="err">${String(e.message).replace(/</g,'&lt;')}</div>`}
+}
+
+/* ---- WhatsApp: prefilled message, the person just presses send ---- */
+const waDigits=p=>String(p||'').replace(/\D/g,'');
+const waUrl=(phone,text)=>`https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(text)}`;
+const _fd=s=>new Date(s+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const waRange=r=>r.from===r.to?_fd(r.from):`${_fd(r.from)} – ${_fd(r.to)}`;
+const waKind=r=>r.kind==='wfh'?'work from home':((LEAVE_TYPES[r.type]||{label:'Leave'}).label.toLowerCase()+' leave');
+const reviewLink=no=>`${location.origin}/manager#/review/${no}`;
+function showWhatsApp(title,toName,phone,text){
+  const ok=waDigits(phone).length>=8, url=ok?waUrl(phone,text):'';
+  const safe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  sheet(`<div style="text-align:center;padding:6px 0">
+    <div style="width:60px;height:60px;border-radius:50%;background:var(--green-l);color:var(--green);display:grid;place-items:center;margin:0 auto 12px;font-size:28px">✓</div>
+    <h2 style="font-size:22px">${safe(title)}</h2>
+    ${ok?`<p style="color:var(--mute);font-size:14px;margin:8px 0 12px">Your message to ${safe(toName)} is ready in WhatsApp. Just press send there.</p>
+      <div class="card" style="text-align:left;font-size:14px;white-space:pre-wrap">${safe(text)}</div>
+      <a class="btn" style="display:block;text-decoration:none;text-align:center;background:#25D366;box-shadow:none" href="${url}" target="_blank" rel="noopener">Open WhatsApp</a>`
+     :`<p style="color:var(--mute);font-size:14px;margin:8px 0 12px">${safe(toName)} has no WhatsApp number saved, so a chat can’t be opened. Ask your admin to add it.</p>`}
+    <button class="btn ghost" style="color:var(--mute)" onclick="closeSheet()">Close</button></div>`);
+  if(ok){try{window.open(url,'_blank','noopener')}catch(e){}}
+}
+
 
 
 const PAGE='admin';
@@ -481,7 +554,7 @@ function vDashboard(){
   const inactiveReports=active.filter(e=>e.mgr&&!byId(e.mgr).active);
   if(inactiveReports.length)alerts.push(`${inactiveReports.length} employee(s) report to an inactive manager`);
   const next=holidays.filter(h=>h.d>=TODAY).sort((a,b)=>a.d.localeCompare(b.d))[0];
-  return `<header class="top"><div class="t"><small>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</small><h1>Hello, ${esc((ME?ME.name:'').split(' ')[0])}</h1></div><button class="avatar" onclick="toast('Signed in as ${'Admin'}')">${ini(ME?ME.name:'A')}</button></header>
+  return `<header class="top"><div class="t"><small>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</small><h1>Hello, ${esc((ME?ME.name:'').split(' ')[0])}</h1></div><button class="avatar" onclick="go('profile')">${ini(ME?ME.name:'A')}</button></header>
   <div class="kpis">
     <div class="kpi g"><small>Active employees</small><b>${active.length}</b></div>
     <div class="kpi"><small>On leave today</small><b style="color:var(--brand)">${onLeave.length}</b></div>
@@ -546,6 +619,7 @@ function openEmp(id){
    <div class="two"><div><label class="f">Employee ID</label><input class="in" id="f_code" value="${esc(e.id)}" ${id?'readonly':''}></div>
    <div><label class="f">Designation</label><input class="in" id="f_desig" value="${esc(e.desig)}"></div></div>
    <label class="f">Work email</label><input class="in" id="f_email" type="email" value="${esc(e.email)}">
+   <label class="f">WhatsApp number <small style="color:var(--mute)">(with country code)</small></label><input class="in" id="f_phone" type="tel" value="${esc(e.phone||'')}" placeholder="e.g. 919876543210">
    <label class="f">${id?'Reset password <small style="color:var(--mute)">(optional)</small>':'Temporary password'}</label><input class="in" id="f_pw" type="password" autocomplete="new-password" placeholder="At least 8 characters">
    <div class="two"><div><label class="f">Role</label><select class="in" id="f_role">${['employee','manager','admin'].map(r=>`<option ${e.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
    <div><label class="f">Team</label><select class="in" id="f_team"><option value="">— No team —</option>${teams.map(t=>`<option ${e.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div></div>
@@ -556,7 +630,7 @@ function openEmp(id){
 }
 async function saveEmp(id){
   const v=k=>$('#f_'+k).value.trim();
-  const d={name:v('name'),email:v('email').toLowerCase(),desig:v('desig'),role:v('role'),team:v('team'),mgr:v('mgr')||null,active:$('#f_active').classList.contains('on'),password:$('#f_pw').value};
+  const d={name:v('name'),email:v('email').toLowerCase(),desig:v('desig'),role:v('role'),team:v('team'),mgr:v('mgr')||null,active:$('#f_active').classList.contains('on'),password:$('#f_pw').value,phone:v('phone')};
   const code=id||v('code').toUpperCase();
   const fail=m=>{$('#f_err').innerHTML=`<div class="err">${esc(m)}</div>`};
   if(!d.name)return fail('Name is required.');
@@ -594,7 +668,7 @@ async function setMgr(id,val){
   if(!val&&e.role!=='admin'){toast('Only admins can have no reporting manager');render();return}
   try{
     if(val)await api('POST','/api/employees/bulk',{ids:[id],mgr:val});
-    else await api('PUT','/api/employees/'+encodeURIComponent(id),{name:e.name,email:e.email,desig:e.desig,role:e.role,team:e.team,mgr:null,active:e.active});
+    else await api('PUT','/api/employees/'+encodeURIComponent(id),{name:e.name,email:e.email,desig:e.desig,role:e.role,team:e.team,mgr:null,active:e.active,phone:e.phone});
     await loadState();render();toast(`${e.name} now reports to ${val?nameOf(val):'no one'}`);
   }catch(err){toast(err.message);try{await loadState()}catch(_){}render()}
 }
@@ -910,10 +984,21 @@ function exportReport(){
 function openMore(){
   const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['reports','Reports','chart'],['activity','Activity log','log']];
   sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>${it.map(([k,l,i])=>`<div class="more" onclick="go('${k}')">${ic(i)}<span>${l}</span>${ic('right')}</div>`).join('')}
+   <div class="more" onclick="go('profile')">${ic('right')}<span>Profile &amp; password</span>${ic('right')}</div>
    ${viewLinks().map(([k,l,h])=>`<a class="more" href="${h}" style="text-decoration:none;color:inherit">${ic('right')}<span>Switch to ${l}</span>${ic('right')}</a>`).join('')}
    <div class="more" style="color:var(--red);border:none" onclick="closeSheet();doLogout()">${ic('out')}<span>Sign out</span></div>`);
 }
-const VIEWS={dashboard:vDashboard,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
+function vProfile(){
+  return `<header class="top"><div class="t"><small>Signed in</small><h1>Profile</h1></div></header>
+  <div class="prof"><div class="avatar">${ini(ME.name)}</div><h1>${esc(ME.name)}</h1><p>Administrator</p></div>
+  <div class="card" style="margin-top:18px;padding:6px 16px">
+   <div class="kv"><span>Employee ID</span><b>${esc(ME.id)}</b></div><div class="kv"><span>Email</span><b>${esc(ME.email)}</b></div>
+   <div class="kv"><span>WhatsApp</span><b>${esc(ME.phone||'Not set')}</b></div><div class="kv"><span>Role</span><b>Admin</b></div></div>
+  <button class="btn line" onclick="openPhone()">WhatsApp number</button>
+  <button class="btn line" onclick="openChangePassword()">Change password</button>
+  <button class="btn line" onclick="doLogout()">Sign out</button>`;
+}
+const VIEWS={dashboard:vDashboard,profile:vProfile,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
 function onAuthed(){tab='dashboard';render()}
 function render(){
   if(!ME||ME.role!=='admin'){
@@ -926,13 +1011,14 @@ function render(){
   bind();
   const st=$('#view').scrollTop;
   const cur=tab==='team'?'teams':tab;
-  $('#view').innerHTML='<div class="page'+(['org','activity','team'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
+  $('#view').innerHTML='<div class="page'+(['org','activity','team','profile'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
   $('#view').scrollTop=st;
   if(tab==='employees')drawEmpList();
   const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'
    +items.map(([k,l,i,c])=>`<button class="${cur===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')
-   +viewNav()+`<button class="mOnly ${['teams','org','reports','activity'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
+   +viewNav()+`<button class="mOnly ${['teams','org','reports','activity','profile'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
+   +`<button class="sidelink ${cur==='profile'?'on':''}" onclick="go('profile')">${ic('users')}Profile</button>`
    +`<button class="sidelink" onclick="doLogout()">${ic('out')}Sign out</button>`;
 }
 boot();

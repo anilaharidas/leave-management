@@ -56,11 +56,11 @@ const bad = (m) => new HttpError(400, m);
 
 /* ───────── data access ───────── */
 const EMP_SQL = `SELECT e.id, e.emp_code, e.name, e.email, e.designation, e.role, e.is_active,
-  e.team_id, t.name AS team, e.manager_id, m.emp_code AS mgr
+  e.team_id, t.name AS team, e.manager_id, m.emp_code AS mgr, e.phone, e.must_change_password
   FROM employees e LEFT JOIN teams t ON t.id = e.team_id LEFT JOIN employees m ON m.id = e.manager_id`;
 const empShape = (r) => ({
   id: r.emp_code, name: r.name, email: r.email, desig: r.designation || '', role: r.role,
-  team: r.team || '', mgr: r.mgr || null, active: !!r.is_active,
+  team: r.team || '', mgr: r.mgr || null, active: !!r.is_active, phone: r.phone || '',
 });
 async function allEmployees(db) { return (await db.prepare(EMP_SQL + ' ORDER BY e.id').all()).results; }
 async function empByCode(db, code) { return db.prepare(EMP_SQL + ' WHERE e.emp_code = ?').bind(code).first(); }
@@ -104,7 +104,7 @@ async function loadUser(c) {
   const token = getCookie(c, COOKIE);
   if (!token) return null;
   const row = await c.env.DB.prepare(
-    `SELECT e.id, e.emp_code, e.name, e.email, e.role, e.is_active, s.expires_at
+    `SELECT e.id, e.emp_code, e.name, e.email, e.role, e.is_active, e.must_change_password, s.expires_at
      FROM sessions s JOIN employees e ON e.id = s.employee_id WHERE s.token_hash = ?`).bind(await sha256Hex(token)).first();
   if (!row || !row.is_active || row.expires_at < nowSql()) return null;
   return row;
@@ -112,6 +112,11 @@ async function loadUser(c) {
 const requireUser = async (c, next) => {
   const u = await loadUser(c);
   if (!u) return c.json({ error: 'Please sign in.' }, 401);
+  if (u.must_change_password) {
+    const p = new URL(c.req.url).pathname;
+    if (!(p === '/api/state' || p.startsWith('/api/auth/')))
+      return c.json({ error: 'Please set a new password before continuing.', code: 'MUST_CHANGE' }, 403);
+  }
   c.set('user', u);
   await next();
 };
@@ -176,11 +181,33 @@ app.post('/api/auth/logout', async (c) => {
 app.post('/api/auth/password', requireUser, async (c) => {
   const u = c.get('user'), b = await c.req.json();
   const row = await c.env.DB.prepare('SELECT password_hash FROM employees WHERE id = ?').bind(u.id).first();
-  if (!(await verifyPassword(String(b.current || ''), row.password_hash))) throw bad('Current password is incorrect.');
-  const next = String(b.next || '');
+  const current = String(b.current || ''), next = String(b.next || '');
+  if (!(await verifyPassword(current, row.password_hash))) throw bad('Current password is incorrect.');
   if (next.length < 8) throw bad('New password must be at least 8 characters.');
-  await c.env.DB.prepare('UPDATE employees SET password_hash = ? WHERE id = ?').bind(await hashPassword(next), u.id).run();
+  if (next === current) throw bad('Choose a password different from the current one.');
+  const keep = await sha256Hex(getCookie(c, COOKIE) || '');
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE employees SET password_hash = ?, must_change_password = 0 WHERE id = ?').bind(await hashPassword(next), u.id),
+    c.env.DB.prepare('DELETE FROM sessions WHERE employee_id = ? AND token_hash <> ?').bind(u.id, keep),
+    logStmt(c.env.DB, u.id, 'Password changed', u.name),
+  ]);
   return c.json({ ok: true });
+});
+
+function normPhone(v) {
+  const raw = String(v || '').trim();
+  let d = raw.replace(/\D/g, '');
+  if (!raw) return '';
+  if (!d) throw bad('Enter the WhatsApp number using digits only, with country code.');
+  if (d.length === 10) d = '91' + d;
+  if (d.length < 8 || d.length > 15) throw bad('Enter the WhatsApp number with country code, for example 919876543210.');
+  return d;
+}
+app.post('/api/me/phone', requireUser, async (c) => {
+  const u = c.get('user'), b = await c.req.json();
+  const phone = normPhone(b.phone);
+  await c.env.DB.prepare('UPDATE employees SET phone = ? WHERE id = ?').bind(phone || null, u.id).run();
+  return c.json({ ok: true, phone });
 });
 
 /* ───────── state (role-scoped snapshot) ───────── */
@@ -201,7 +228,7 @@ app.get('/api/state', requireUser, async (c) => {
   const rows = await allEmployees(db);
   const meRow = rows.find((r) => r.id === u.id);
   const holidays = (await db.prepare('SELECT date AS d, name AS n FROM holidays ORDER BY date').all()).results;
-  const out = { me: empShape(meRow), teams: [], teamLeads: {}, emps: [], holidays, reqs: [], att: {}, imports: [], audit: [] };
+  const out = { me: { ...empShape(meRow), mustChange: !!meRow.must_change_password }, teams: [], teamLeads: {}, emps: [], holidays, reqs: [], att: {}, imports: [], audit: [] };
 
   const REQ_SQL = `SELECT r.*, e.emp_code AS emp, a.emp_code AS appr FROM requests r
     JOIN employees e ON e.id = r.employee_id JOIN employees a ON a.id = r.approver_id`;
@@ -377,7 +404,8 @@ async function validateEmployee(db, b, selfId) {
     managerId = m.id;
   }
   if (role !== 'admin' && !managerId) throw bad('Managers and employees need a reporting manager.');
-  return { name, email, role, desig, teamId, managerId, active: b.active === false ? 0 : 1 };
+  const phone = 'phone' in b ? normPhone(b.phone) : undefined;
+  return { name, email, role, desig, teamId, managerId, phone, active: b.active === false ? 0 : 1 };
 }
 
 app.post('/api/employees', ...admin, async (c) => {
@@ -393,8 +421,8 @@ app.post('/api/employees', ...admin, async (c) => {
   if (!/^EMP-\d+$/.test(code)) throw bad('Employee ID must look like EMP-1234.');
   if (await empByCode(db, code)) throw bad('That employee ID already exists.');
   await db.batch([
-    db.prepare(`INSERT INTO employees (emp_code, name, email, designation, team_id, manager_id, role, password_hash, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(code, v.name, v.email, v.desig, v.teamId, v.managerId, v.role, await hashPassword(password), v.active),
+    db.prepare(`INSERT INTO employees (emp_code, name, email, designation, team_id, manager_id, role, password_hash, is_active, phone, must_change_password)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`).bind(code, v.name, v.email, v.desig, v.teamId, v.managerId, v.role, await hashPassword(password), v.active, v.phone || null),
     logStmt(db, u.id, 'Employee added', `${v.name} (${code}) · ${v.role}`),
   ]);
   return c.json({ ok: true, id: code });
@@ -407,14 +435,14 @@ app.put('/api/employees/:code', ...admin, async (c) => {
   const v = await validateEmployee(db, b, cur.id);
   if (cur.id === u.id && (v.role !== 'admin' || !v.active)) throw bad('You can’t remove your own admin access or deactivate yourself.');
   const stmts = [
-    db.prepare(`UPDATE employees SET name=?, email=?, designation=?, team_id=?, manager_id=?, role=?, is_active=? WHERE id=?`)
-      .bind(v.name, v.email, v.desig, v.teamId, v.managerId, v.role, v.active, cur.id),
+    db.prepare(`UPDATE employees SET name=?, email=?, designation=?, team_id=?, manager_id=?, role=?, is_active=?, phone=? WHERE id=?`)
+      .bind(v.name, v.email, v.desig, v.teamId, v.managerId, v.role, v.active, v.phone === undefined ? cur.phone : (v.phone || null), cur.id),
     logStmt(db, u.id, 'Employee updated', `${v.name} (${cur.emp_code})`),
   ];
   const pw = String(b.password || '');
   if (pw) {
     if (pw.length < 8) throw bad('Password must be at least 8 characters.');
-    stmts.push(db.prepare('UPDATE employees SET password_hash = ? WHERE id = ?').bind(await hashPassword(pw), cur.id));
+    stmts.push(db.prepare('UPDATE employees SET password_hash = ?, must_change_password = 1 WHERE id = ?').bind(await hashPassword(pw), cur.id));
   }
   if (!v.active || pw) stmts.push(db.prepare('DELETE FROM sessions WHERE employee_id = ?').bind(cur.id));
   // a team lead who leaves their team (or is deactivated) is no longer lead
