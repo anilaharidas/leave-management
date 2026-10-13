@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -340,7 +340,7 @@ function loginGate(title,sub,note){
       <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
   }
   return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
-    <p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>
+    ${sub?`<p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>`:''}
     ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
     <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
     <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
