@@ -284,63 +284,33 @@ tr.bad td{background:var(--red-l)}
 </div>
 
 <script>
+/* =============== shared browser store (stand-in until the D1 backend exists) =============== */
+const STORE_KEY='leavedesk.v1';
+const INDIA_2026=[['2026-01-01','New Year’s Day'],['2026-01-26','Republic Day'],['2026-03-04','Holi'],['2026-05-01','Labour Day'],['2026-08-15','Independence Day'],['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']];
+const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
+function blankDB(){return {v:1,teams:[],emps:[],teamLeads:{},holidays:INDIA_2026.map(([d,n])=>({d,n})),reqs:[],att:{},imports:[],audit:[],seq:{LV:0,WFH:0}}}
+function readStore(){try{const d=JSON.parse(localStorage.getItem(STORE_KEY));if(d&&d.v===1)return d}catch(e){}return null}
+let DB=Object.assign(blankDB(),readStore()||{});
+function saveDB(){try{localStorage.setItem(STORE_KEY,JSON.stringify(DB))}catch(e){}}
+function reloadDB(){const d=readStore();if(d){DB=Object.assign(blankDB(),d);return true}return false}
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function stamp(){return todayISO()+' '+new Date().toTimeString().slice(0,5)}
+function nextReqNo(kind){const k=kind==='wfh'?'WFH':'LV';DB.seq[k]=(DB.seq[k]||0)+1;return `${k}-${new Date().getFullYear()}-${String(DB.seq[k]).padStart(4,'0')}`}
+function usedDays(empId,type){const y=todayISO().slice(0,4);return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Approved'&&r.from.startsWith(y)).reduce((a,r)=>a+r.days,0)}
+function pendingDays(empId,type){return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Pending').reduce((a,r)=>a+r.days,0)}
+
+
 /* =============== data =============== */
-const TODAY='2026-10-12';
-const ADMIN={id:'EMP-1001',name:'Meera Iyer',role:'HR Admin'};
-let teams=['Design','Engineering','Sales','HR','Finance'];
-let teamLeads={Design:'EMP-1010',Engineering:'EMP-1020',Sales:'EMP-1030',HR:'EMP-1001'};
-let emps=[
- {id:'EMP-1001',name:'Meera Iyer',email:'meera.iyer@company.com',desig:'HR Head',role:'admin',team:'HR',mgr:null,active:true},
- {id:'EMP-1010',name:'Arjun Mehta',email:'arjun.mehta@company.com',desig:'Design Lead',role:'manager',team:'Design',mgr:'EMP-1001',active:true},
- {id:'EMP-1042',name:'Priya Nair',email:'priya.nair@company.com',desig:'Product Designer',role:'employee',team:'Design',mgr:'EMP-1010',active:true},
- {id:'EMP-1043',name:'Rohan Das',email:'rohan.das@company.com',desig:'UI Designer',role:'employee',team:'Design',mgr:'EMP-1010',active:true},
- {id:'EMP-1020',name:'Kavya Menon',email:'kavya.menon@company.com',desig:'Engineering Manager',role:'manager',team:'Engineering',mgr:'EMP-1001',active:true},
- {id:'EMP-1021',name:'Sanjay Pillai',email:'sanjay.pillai@company.com',desig:'Senior Engineer',role:'employee',team:'Engineering',mgr:'EMP-1020',active:true},
- {id:'EMP-1022',name:'Neha Kapoor',email:'neha.kapoor@company.com',desig:'Software Engineer',role:'employee',team:'Engineering',mgr:'EMP-1020',active:true},
- {id:'EMP-1023',name:'Imran Sheikh',email:'imran.sheikh@company.com',desig:'QA Engineer',role:'employee',team:'Engineering',mgr:'EMP-1020',active:true},
- {id:'EMP-1030',name:'Divya Rao',email:'divya.rao@company.com',desig:'Sales Head',role:'manager',team:'Sales',mgr:'EMP-1001',active:true},
- {id:'EMP-1031',name:'Vikram Singh',email:'vikram.singh@company.com',desig:'Account Executive',role:'employee',team:'Sales',mgr:'EMP-1030',active:true},
- {id:'EMP-1032',name:'Ananya Bose',email:'ananya.bose@company.com',desig:'Sales Associate',role:'employee',team:'Sales',mgr:'EMP-1030',active:true},
- {id:'EMP-1033',name:'Karan Malhotra',email:'karan.malhotra@company.com',desig:'Sales Associate',role:'employee',team:'Sales',mgr:'EMP-1030',active:false},
- {id:'EMP-1050',name:'Sneha Joseph',email:'sneha.joseph@company.com',desig:'HR Executive',role:'employee',team:'HR',mgr:'EMP-1001',active:true},
- {id:'EMP-1060',name:'Farhan Ali',email:'farhan.ali@company.com',desig:'Accountant',role:'employee',team:'Finance',mgr:'EMP-1001',active:true},
-];
-let holidays=[
- ['2026-01-01','New Year’s Day'],['2026-01-26','Republic Day'],['2026-03-04','Holi'],['2026-05-01','Labour Day'],
- ['2026-08-15','Independence Day'],['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],
- ['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']
-].map(([d,n])=>({d,n}));
-const seedReqs=[
- {no:'LV-2026-0201',emp:'EMP-1043',kind:'leave',type:'Annual',from:'2026-10-12',to:'2026-10-13',status:'Approved',appr:'EMP-1010'},
- {no:'LV-2026-0203',emp:'EMP-1022',kind:'leave',type:'Sick',from:'2026-10-12',to:'2026-10-12',status:'Approved',appr:'EMP-1020'},
- {no:'WFH-2026-0120',emp:'EMP-1021',kind:'wfh',from:'2026-10-12',to:'2026-10-12',status:'Approved',appr:'EMP-1020'},
- {no:'WFH-2026-0121',emp:'EMP-1031',kind:'wfh',from:'2026-10-12',to:'2026-10-12',status:'Approved',appr:'EMP-1030'},
- {no:'LV-2026-0187',emp:'EMP-1042',kind:'leave',type:'Annual',from:'2026-10-14',to:'2026-10-16',status:'Pending',appr:'EMP-1010'},
- {no:'LV-2026-0205',emp:'EMP-1060',kind:'leave',type:'Casual',from:'2026-10-15',to:'2026-10-15',status:'Pending',appr:'EMP-1001'},
- {no:'WFH-2026-0122',emp:'EMP-1023',kind:'wfh',from:'2026-10-14',to:'2026-10-14',status:'Pending',appr:'EMP-1020'},
- {no:'LV-2026-0206',emp:'EMP-1032',kind:'leave',type:'Annual',from:'2026-10-19',to:'2026-10-23',status:'Pending',appr:'EMP-1030'},
-];
+const TODAY=todayISO();
+const ADMIN={id:'',name:'Administrator',role:'HR Admin'};
+const TL={annual:'Annual',sick:'Sick',casual:'Casual'};
+let teams,emps,holidays,teamLeads,att,imports,audit;
+function bind(){teams=DB.teams;emps=DB.emps;holidays=DB.holidays;teamLeads=DB.teamLeads;att=DB.att;imports=DB.imports;audit=DB.audit}
+bind();
+function persist(){const f=readStore();if(f){DB.reqs=f.reqs;DB.seq=f.seq}DB.teams=teams;DB.emps=emps;DB.holidays=holidays;DB.teamLeads=teamLeads;DB.att=att;DB.imports=imports;DB.audit=audit;saveDB()}
 const STATUSES=['present','late','absent','half_day','wfh','leave'];
 const SNAME={present:'Present',late:'Late',absent:'Absent',half_day:'Half day',wfh:'WFH',leave:'On leave'};
 const SCOL={present:'var(--green)',late:'var(--amber)',absent:'var(--red)',half_day:'var(--blue)',wfh:'var(--plum)',leave:'var(--brand)'};
-const att={};   // "EMP|date" -> {s,in,out,batch}
-let imports=[{id:'IMP-0006',file:'attendance_sep_2026.csv',by:'Meera Iyer',at:'2026-10-01 09:12',total:286,valid:286,errors:0,overwritten:0}];
-let audit=[
- {a:'Attendance import IMP-0006',d:'attendance_sep_2026.csv · 286 rows',t:'2026-10-01 09:12'},
- {a:'Holiday added',d:'Dussehra · 20 Oct 2026',t:'2026-09-28 16:40'},
- {a:'Reporting manager changed',d:'Rohan Das → Arjun Mehta',t:'2026-09-20 11:05'},
-];
-(function seedAtt(){
-  const days=[]; for(let d=1;d<=9;d++){const dt=new Date(2026,9,d);if(dt.getDay()===0||dt.getDay()===6)continue;days.push(iso(dt))}
-  emps.filter(e=>e.active).forEach((e,i)=>days.forEach((ds,j)=>{
-    if(ds==='2026-10-02')return;
-    const h=(i*7+j*13)%17; let s='present',ci='09:'+String(5+(i*3+j*7)%40).padStart(2,'0'),co='18:'+String(10+(i*5+j*3)%45).padStart(2,'0');
-    if(h===3){s='absent';ci=co=''} else if(h===5){s='late';ci='10:'+String(5+(i+j)%40).padStart(2,'0')}
-    else if(h===8){s='wfh'} else if(h===11&&e.role!=='admin'){s='leave';ci=co=''}
-    att[e.id+'|'+ds]={s,in:ci,out:co,batch:'IMP-0006'};
-  }));
-})();
-
 /* =============== helpers =============== */
 const $=s=>document.querySelector(s);
 function iso(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -351,7 +321,7 @@ const nowStamp=()=>TODAY+' '+new Date().toTimeString().slice(0,5);
 const ini=n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
 const byId=id=>emps.find(e=>e.id===id);
 const nameOf=id=>byId(id)?byId(id).name:'—';
-function log(a,d){audit.unshift({a,d,t:nowStamp()})}
+function log(a,d){audit.unshift({a,d,t:nowStamp()});persist()}
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('.phone').appendChild(t);setTimeout(()=>t.remove(),2800)}
 function closeSheet(){$('#overlay').innerHTML=''}
 function sheet(html){$('#overlay').innerHTML=`<div class="scrim" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="grab"></div>${html}</div></div>`}
@@ -383,16 +353,16 @@ let curTeam=0,sel=new Set(),addSel=new Set(),addQ='';
 let empQ='',empRole='All',empTeam='All';
 let repTeam='All';
 let pend=null;          // pending CSV preview
-let browseDate='2026-10-09';
+let browseDate=lastWorkday();
 function go(t){tab=t;closeSheet();render();$('#view').scrollTop=0}
 
 /* =============== dashboard =============== */
 function covers(r,ds){return ds>=r.from&&ds<=r.to}
 function vDashboard(){
   const active=emps.filter(e=>e.active);
-  const onLeave=seedReqs.filter(r=>r.kind==='leave'&&r.status==='Approved'&&covers(r,TODAY));
-  const wfh=seedReqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&covers(r,TODAY));
-  const pending=seedReqs.filter(r=>r.status==='Pending');
+  const onLeave=DB.reqs.filter(r=>r.kind==='leave'&&r.status==='Approved'&&covers(r,TODAY));
+  const wfh=DB.reqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&covers(r,TODAY));
+  const pending=DB.reqs.filter(r=>r.status==='Pending');
   const noMgr=active.filter(e=>e.role!=='admin'&&!e.mgr);
   const lastImp=imports[0];
   const alerts=[];
@@ -400,7 +370,7 @@ function vDashboard(){
   const inactiveReports=active.filter(e=>e.mgr&&!byId(e.mgr).active);
   if(inactiveReports.length)alerts.push(`${inactiveReports.length} employee(s) report to an inactive manager`);
   const next=holidays.filter(h=>h.d>=TODAY).sort((a,b)=>a.d.localeCompare(b.d))[0];
-  return `<header class="top"><div class="t"><small>Monday, 12 October</small><h1>Hello, ${esc(ADMIN.name.split(' ')[0])}</h1></div><button class="avatar" onclick="toast('Signed in as ${esc(ADMIN.role)}')">${ini(ADMIN.name)}</button></header>
+  return `<header class="top"><div class="t"><small>${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</small><h1>Hello, ${esc(ADMIN.name.split(' ')[0])}</h1></div><button class="avatar" onclick="toast('Signed in as ${esc(ADMIN.role)}')">${ini(ADMIN.name)}</button></header>
   <div class="kpis">
     <div class="kpi g"><small>Active employees</small><b>${active.length}</b></div>
     <div class="kpi"><small>On leave today</small><b style="color:var(--brand)">${onLeave.length}</b></div>
@@ -410,13 +380,13 @@ function vDashboard(){
   ${alerts.length?`<div class="card" style="background:var(--amber-l);border-color:transparent"><b style="color:var(--amber)">Needs attention</b>${alerts.map(a=>`<div style="font-size:14px;margin-top:6px">• ${a}</div>`).join('')}<button class="btn line sm" style="margin-top:10px" onclick="go('teams')">Fix in Teams & Reporting</button></div>`:''}
   <div class="cols"><div>
     <div class="sec" style="margin-top:6px"><h2>Away today</h2></div>
-    ${[...onLeave.map(r=>[r,'Leave · '+r.type]),...wfh.map(r=>[r,'Work from home'])].map(([r,l])=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(nameOf(r.emp))}</div><div class="m"><b>${esc(nameOf(r.emp))}</b><small>${l} · ${esc(byId(r.emp).team)}</small></div><span class="pill Approved">Approved</span></div>`).join('')||'<div class="empty">Everyone is in today.</div>'}
+    ${[...onLeave.map(r=>[r,'Leave · '+(TL[r.type]||r.type)]),...wfh.map(r=>[r,'Work from home'])].map(([r,l])=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(nameOf(r.emp))}</div><div class="m"><b>${esc(nameOf(r.emp))}</b><small>${l} · ${esc((byId(r.emp)||{}).team||'')}</small></div><span class="pill Approved">Approved</span></div>`).join('')||'<div class="empty">Everyone is in today.</div>'}
     <div class="sec"><h2>Waiting on managers</h2></div>
-    ${pending.map(r=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(nameOf(r.emp))}</div><div class="m"><b>${esc(nameOf(r.emp))}</b><small>${r.kind==='wfh'?'WFH':r.type+' leave'} · ${fmt(r.from)}${r.to!==r.from?' – '+fmt(r.to):''} · with ${esc(nameOf(r.appr))}</small></div><span class="pill Pending">Pending</span></div>`).join('')}
+    ${pending.map(r=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(nameOf(r.emp))}</div><div class="m"><b>${esc(nameOf(r.emp))}</b><small>${r.kind==='wfh'?'WFH':(TL[r.type]||r.type)+' leave'} · ${fmt(r.from)}${r.to!==r.from?' – '+fmt(r.to):''} · with ${esc(nameOf(r.appr))}</small></div><span class="pill Pending">Pending</span></div>`).join('')}
   </div><div>
     <div class="sec" style="margin-top:6px"><h2>Quick actions</h2></div>
     <div class="quick">
-      <button class="qa" onclick="go('attendance')"><div class="ic" style="background:var(--brand-l);color:var(--brand)">${ic('up')}</div><b>Upload attendance</b><small>Last: ${esc(lastImp.id)} · ${fmt(lastImp.at.slice(0,10))}</small></button>
+      <button class="qa" onclick="go('attendance')"><div class="ic" style="background:var(--brand-l);color:var(--brand)">${ic('up')}</div><b>Upload attendance</b><small>${lastImp?'Last: '+esc(lastImp.id)+' · '+fmt(lastImp.at.slice(0,10)):'No uploads yet'}</small></button>
       <button class="qa" onclick="openEmp(null)"><div class="ic" style="background:var(--plum-l);color:var(--plum)">${ic('plus')}</div><b>Add employee</b><small>Profile, role, manager</small></button>
       <button class="qa" onclick="go('holidays')"><div class="ic" style="background:var(--green-l);color:var(--green)">${ic('cal')}</div><b>Holidays</b><small>Next: ${next?esc(next.n)+' · '+fmt(next.d):'none'}</small></button>
       <button class="qa" onclick="go('reports')"><div class="ic" style="background:var(--blue-l);color:var(--blue)">${ic('chart')}</div><b>Reports</b><small>Attendance by team</small></button>
@@ -426,12 +396,12 @@ function vDashboard(){
   </div></div>`;
 }
 function actRow(x){return `<div class="card act"><span class="dot"></span><div><b>${esc(x.a)}</b><small>${esc(x.d)} · ${esc(x.t)}</small></div></div>`}
-function vActivity(){return `<header class="top"><div class="t"><small>Audit trail</small><h1>Activity log</h1></div></header><div class="narrow">${audit.map(actRow).join('')}</div>`}
+function vActivity(){return `<header class="top"><div class="t"><small>Audit trail</small><h1>Activity log</h1></div></header><div class="narrow">${audit.map(actRow).join('')||'<div class="empty">No activity yet.</div>'}</div>`}
 
 /* =============== employees =============== */
 function empRow(e){
   return `<div class="card who ${e.active?'':'off'}" onclick="openEmp('${e.id}')"><div class="avatar">${ini(e.name)}</div>
-   <div class="m"><b>${esc(e.name)}</b><small>${esc(e.desig||'')} · ${esc(e.team)} · ${e.id}</small></div>
+   <div class="m"><b>${esc(e.name)}</b><small>${esc(e.desig||'')} · ${esc(e.team||'No team')} · ${e.id}</small></div>
    <span class="tag ${e.active?e.role:'off'}">${e.active?e.role:'inactive'}</span></div>`;
 }
 function filteredEmps(){
@@ -455,9 +425,9 @@ function vEmployees(){
   <div id="emplist" class="list2"></div>
   <button class="fab-add" aria-label="Add employee" onclick="openEmp(null)">${ic('plus')}</button>`;
 }
-function nextCode(){const n=Math.max(...emps.map(e=>+e.id.split('-')[1]))+1;return 'EMP-'+n}
+function nextCode(){const n=emps.map(e=>+e.id.split('-')[1]).filter(x=>x);return 'EMP-'+(n.length?Math.max(...n)+1:1001)}
 function openEmp(id){
-  const e=id?byId(id):{id:nextCode(),name:'',email:'',desig:'',role:'employee',team:teams[0],mgr:null,active:true};
+  const e=id?byId(id):{id:nextCode(),name:'',email:'',desig:'',role:emps.length?'employee':'admin',team:teams[0]||'',mgr:null,active:true};
   const bad=id?[id,...descendants(id)]:[];
   const mgrs=emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!bad.includes(m.id));
   sheet(`<h2 style="font-size:22px">${id?'Edit employee':'Add employee'}</h2>
@@ -466,7 +436,7 @@ function openEmp(id){
    <div><label class="f">Designation</label><input class="in" id="f_desig" value="${esc(e.desig)}"></div></div>
    <label class="f">Work email</label><input class="in" id="f_email" type="email" value="${esc(e.email)}">
    <div class="two"><div><label class="f">Role</label><select class="in" id="f_role">${['employee','manager','admin'].map(r=>`<option ${e.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
-   <div><label class="f">Team</label><select class="in" id="f_team">${teams.map(t=>`<option ${e.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div></div>
+   <div><label class="f">Team</label><select class="in" id="f_team"><option value="">— No team —</option>${teams.map(t=>`<option ${e.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div></div>
    <label class="f">Reporting manager</label><select class="in" id="f_mgr"><option value="">— None —</option>${mgrs.map(m=>`<option value="${m.id}" ${e.mgr===m.id?'selected':''}>${esc(m.name)} (${esc(m.team)})</option>`).join('')}</select>
    <div class="toggle"><div><b style="font-size:14px">Active account</b><br><small style="color:var(--mute)">Inactive staff can’t log in or be assigned requests</small></div><button class="sw ${e.active?'on':''}" id="f_active" onclick="this.classList.toggle('on')"></button></div>
    <div id="f_err"></div>
@@ -498,7 +468,7 @@ function saveEmp(id){
 function vTeams(){
   return `<header class="top"><div class="t"><small>${teams.length} teams</small><h1>Teams & reporting</h1></div><button class="btn sm hdr-actions" onclick="openTeam(null)">+ Add team</button></header>
   <div class="tools"><button class="btn sm line" onclick="openTeam(null)">+ Add team</button></div>
-  <div class="list2">${teams.map((t,ti)=>{const m=emps.filter(e=>e.team===t&&e.active);const lead=leadOf(t);
+  ${teams.length?'':'<div class="empty">No teams yet. Tap “+ Add team” to create one.</div>'}<div class="list2">${teams.map((t,ti)=>{const m=emps.filter(e=>e.team===t&&e.active);const lead=leadOf(t);
     return `<div class="card who" onclick="openTeamPage(${ti})"><div class="avatar" style="background:var(--brand-l);color:var(--brand-d)">${ini(t)}</div><div class="m"><b>${esc(t)}</b><small>${m.length} active · Lead: ${lead?esc(lead.name):'<span style="color:var(--amber)">not set</span>'}</small></div>${ic('right')}</div>`}).join('')}</div>
   <div class="sec"><h2>Reporting lines</h2></div>
   <p style="color:var(--mute);font-size:13px;margin:-4px 2px 12px">Requests go to the manager set here. Changing a manager only affects new requests.</p>
@@ -647,22 +617,21 @@ function doMoveOut(){
 }
 
 /* =============== attendance + CSV =============== */
-const SAMPLE_CSV=`emp_code,date,status,check_in,check_out
-EMP-1042,2026-10-12,present,09:12,18:20
-EMP-1043,2026-10-12,leave,,
-EMP-1021,2026-10-12,wfh,09:30,18:10
-EMP-1022,2026-10-12,late,10:41,18:45
-EMP-1023,2026-10-12,present,09:05,18:30
-EMP-1031,2026-10-12,half_day,09:20,13:30
-EMP-1042,2026-10-09,present,09:15,18:00
-EMP-9999,2026-10-12,present,09:00,18:00
-EMP-1060,2026-13-40,present,09:00,18:00
-EMP-1050,2026-10-12,sleeping,09:00,18:00
-EMP-1032,2026-10-12,present,18:30,09:00
-EMP-1042,2026-10-12,present,09:12,18:20
-EMP-1033,2026-10-12,present,09:00,18:00
-EMP-1060,2026-10-25,present,09:00,18:00
-EMP-1060,2026-10-14,present,09:00,18:00`;
+function lastWorkday(){const d=P(TODAY);do{d.setDate(d.getDate()-1)}while(d.getDay()===0||d.getDay()===6);return iso(d)}
+function buildSample(){
+  const act=emps.filter(e=>e.active),day=lastWorkday();
+  const pat=[['present','09:10','18:05'],['late','10:35','18:40'],['wfh','09:30','18:10'],['leave','',''],['half_day','09:20','13:30']];
+  const L=['emp_code,date,status,check_in,check_out'];
+  act.slice(0,5).forEach((e,i)=>{const [s,a,b]=pat[i%pat.length];L.push([e.id,day,s,a,b].join(','))});
+  const c0=act[0]?act[0].id:'EMP-0001';
+  L.push('EMP-9999,'+day+',present,09:00,18:00');
+  L.push(c0+',2026-13-40,present,09:00,18:00');
+  L.push(c0+','+day+',sleeping,09:00,18:00');
+  if(act[1])L.push(act[1].id+','+day+',present,18:30,09:00');
+  if(act[0])L.push(act[0].id+','+day+',present,09:12,18:20');
+  return L.join('\n');
+}
+function trySample(){if(!emps.some(e=>e.active)){toast('Add employees first');return}loadText(buildSample(),'sample_attendance.csv')}
 function parseCSV(text){
   const lines=text.replace(/^﻿/,'').split(/\r?\n/).filter(l=>l.trim());
   const head=(lines.shift()||'').split(',').map(h=>h.trim().toLowerCase());
@@ -700,7 +669,7 @@ function loadText(text,name){pend=analyse(text,name);render();$('#view').scrollT
 function pickFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>loadText(String(rd.result),f.name);rd.readAsText(f)}
 function confirmImport(){
   if(!pend||!pend.valid.length)return;
-  const id='IMP-'+String(Math.max(...imports.map(i=>+i.id.split('-')[1]))+1).padStart(4,'0');
+  const id='IMP-'+String((imports.length?Math.max(...imports.map(i=>+i.id.split('-')[1])):0)+1).padStart(4,'0');
   pend.valid.forEach(r=>{att[r.code+'|'+r.date]={s:r.s,in:r.in,out:r.out,batch:id}});
   imports.unshift({id,file:pend.file,by:ADMIN.name,at:nowStamp(),total:pend.total,valid:pend.valid.length,errors:pend.errors.length,overwritten:pend.overwrite});
   log(`Attendance import ${id}`,`${pend.file} · ${pend.valid.length} saved, ${pend.errors.length} skipped`);
@@ -725,14 +694,14 @@ function vAttendance(){
   <div class="cols"><div>
    ${p?preview:`<div class="drop" id="drop" onclick="$('#file').click()" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();pickFile(event.dataTransfer.files[0])">${ic('up')}<b>Upload attendance CSV</b><small>Tap to choose a file, or drop it here</small></div>
    <input type="file" id="file" accept=".csv,text/csv" hidden onchange="pickFile(this.files[0]);this.value=''">
-   <div class="tools" style="margin-top:12px"><button class="btn sm line" onclick="loadText(SAMPLE_CSV,'sample_attendance.csv')">Try sample file</button><button class="btn sm line" onclick="download('attendance_template.csv','emp_code,date,status,check_in,check_out\\nEMP-1042,2026-10-09,present,09:10,18:05\\n')">Download template</button></div>`}
+   <div class="tools" style="margin-top:12px"><button class="btn sm line" onclick="trySample()">Try sample file</button><button class="btn sm line" onclick="download('attendance_template.csv','emp_code,date,status,check_in,check_out\\n${emps[0]?emps[0].id:'EMP-1001'},${lastWorkday()},present,09:10,18:05\\n')">Download template</button></div>`}
    <div class="sec"><h2>Browse a day</h2></div>
    <input class="in" type="date" value="${browseDate}" max="${TODAY}" onchange="browseDate=this.value||browseDate;render()">
    <div class="stats" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">${['present','late','wfh','leave','absent','half_day'].map(s=>`<div class="stat"><b style="color:${SCOL[s]}">${counts[s]||0}</b><small>${SNAME[s]}</small></div>`).join('')}</div>
    <div class="tablewrap"><table><tr><th>Employee</th><th>Status</th><th>In</th><th>Out</th></tr>${dayRows.map(([e,a])=>`<tr><td>${esc(e.name)}</td><td>${a?`<span style="color:${SCOL[a.s]};font-weight:700">${SNAME[a.s]}</span>`:'<span style="color:var(--mute)">No record</span>'}</td><td>${a?.in||'—'}</td><td>${a?.out||'—'}</td></tr>`).join('')}</table></div>
   </div><div>
    <div class="sec" style="margin-top:6px"><h2>Import history</h2></div>
-   ${imports.map(i=>`<div class="card"><div class="row"><b style="flex:1;font-size:14px">${esc(i.id)}</b><span class="pill Approved">Saved</span></div><div style="font-size:13px;margin-top:4px">${esc(i.file)}</div><small style="color:var(--mute)">${esc(i.by)} · ${esc(i.at)}<br>${i.valid} saved · ${i.errors} skipped${i.overwritten?` · ${i.overwritten} replaced`:''}</small></div>`).join('')}
+   ${imports.map(i=>`<div class="card"><div class="row"><b style="flex:1;font-size:14px">${esc(i.id)}</b><span class="pill Approved">Saved</span></div><div style="font-size:13px;margin-top:4px">${esc(i.file)}</div><small style="color:var(--mute)">${esc(i.by)} · ${esc(i.at)}<br>${i.valid} saved · ${i.errors} skipped${i.overwritten?` · ${i.overwritten} replaced`:''}</small></div>`).join('')||'<div class="empty">No imports yet.</div>'}
   </div></div>`;
 }
 
@@ -746,7 +715,7 @@ function vHolidays(){
     const d=P(h.d);
     html+=`<div class="card hol" style="cursor:pointer" onclick="openHol('${h.d}')"><div class="d"><b>${d.getDate()}</b><small>${d.toLocaleDateString('en-GB',{month:'short'})}</small></div><div class="m" style="flex:1"><b>${esc(h.n)}</b><small>${d.toLocaleDateString('en-GB',{weekday:'long'})}${h.d<TODAY?' · past':''}</small></div>${ic('right')}</div>`;
   });
-  return `<header class="top"><div class="t"><small>${holidays.length} in 2026</small><h1>Holidays</h1></div><button class="btn sm hdr-actions" onclick="openHol(null)">+ Add holiday</button></header>
+  return `<header class="top"><div class="t"><small>${holidays.length} holiday${holidays.length===1?'':'s'}</small><h1>Holidays</h1></div><button class="btn sm hdr-actions" onclick="openHol(null)">+ Add holiday</button></header>
   <div class="tools"><button class="btn sm" onclick="openHol(null)">+ Add holiday</button></div>${html}`;
 }
 function openHol(d){
@@ -788,7 +757,7 @@ function vOrg(){
 /* =============== reports =============== */
 function monthStats(list){
   const c={present:0,late:0,absent:0,half_day:0,wfh:0,leave:0};
-  list.forEach(e=>Object.keys(att).filter(k=>k.startsWith(e.id+'|2026-10')).forEach(k=>{c[att[k].s]++}));
+  list.forEach(e=>Object.keys(att).filter(k=>k.startsWith(e.id+'|'+TODAY.slice(0,7))).forEach(k=>{c[att[k].s]++}));
   const t=Object.values(c).reduce((a,b)=>a+b,0);
   return {c,t,rate:t?Math.round((c.present+c.late+c.wfh+c.half_day)/t*100):0};
 }
@@ -796,7 +765,7 @@ function vReports(){
   const act=emps.filter(e=>e.active);
   const all=monthStats(act);
   const list=act.filter(e=>repTeam==='All'||e.team===repTeam);
-  return `<header class="top"><div class="t"><small>October 2026 · up to 9 Oct</small><h1>Reports</h1></div><button class="btn sm hdr-actions" onclick="exportReport()">Export CSV</button></header>
+  return `<header class="top"><div class="t"><small>${new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</small><h1>Reports</h1></div><button class="btn sm hdr-actions" onclick="exportReport()">Export CSV</button></header>
   <div class="kpis"><div class="kpi g"><small>Attendance rate</small><b>${all.rate}%</b></div>
    <div class="kpi"><small>Absent days</small><b style="color:var(--red)">${all.c.absent}</b></div>
    <div class="kpi"><small>Leave days</small><b style="color:var(--brand)">${all.c.leave}</b></div>
@@ -818,7 +787,7 @@ function vReports(){
 function exportReport(){
   const act=emps.filter(e=>e.active&&(repTeam==='All'||e.team===repTeam));
   const rows=act.map(e=>{const s=monthStats([e]);return [e.id,e.name,e.team,s.c.present,s.c.late,s.c.wfh,s.c.half_day,s.c.leave,s.c.absent].join(',')});
-  download('attendance_summary_oct_2026.csv','emp_code,name,team,present,late,wfh,half_day,leave,absent\n'+rows.join('\n'));
+  download('attendance_summary_'+TODAY.slice(0,7)+'.csv','emp_code,name,team,present,late,wfh,half_day,leave,absent\n'+rows.join('\n'));
   log('Report exported',`Attendance summary · ${repTeam}`);toast('Report downloaded');
 }
 
@@ -830,6 +799,7 @@ function openMore(){
 }
 const VIEWS={dashboard:vDashboard,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
 function render(){
+  reloadDB();bind();
   const st=$('#view').scrollTop;
   const cur=tab==='team'?'teams':tab;
   $('#view').innerHTML='<div class="page'+(['org','activity','team'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
@@ -841,6 +811,7 @@ function render(){
    +`<button class="mOnly ${['teams','org','reports','activity'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
    +`<button class="sidelink" onclick="toast('Signed out (demo)')">${ic('out')}Sign out</button>`;
 }
+window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&!document.querySelector('#overlay .sheet')&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))render()});
 render();
 </script>
 </body>

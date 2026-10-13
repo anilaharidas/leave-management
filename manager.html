@@ -260,42 +260,26 @@ nav button .nb{position:absolute;top:0;left:calc(50% + 6px);background:var(--red
 </div>
 
 <script>
-/* =============== data =============== */
-const TODAY='2026-10-12';
-const MANAGERS={
-  'EMP-1010':{id:'EMP-1010',name:'Arjun Mehta',desig:'Design Lead',team:'Design',email:'arjun.mehta@company.com'},
-  'EMP-1020':{id:'EMP-1020',name:'Kavya Menon',desig:'Engineering Manager',team:'Engineering',email:'kavya.menon@company.com'},
-};
-const TOTALS={annual:18,sick:10,casual:8};
-const TLABEL={annual:'Annual',sick:'Sick',casual:'Casual'};
-const people=[
- {id:'EMP-1042',name:'Priya Nair',desig:'Product Designer',team:'Design',mgr:'EMP-1010',used:{annual:3,sick:1,casual:0}},
- {id:'EMP-1043',name:'Rohan Das',desig:'UI Designer',team:'Design',mgr:'EMP-1010',used:{annual:6,sick:2,casual:1}},
- {id:'EMP-1044',name:'Aditi Rao',desig:'UX Researcher',team:'Design',mgr:'EMP-1010',used:{annual:4,sick:0,casual:2}},
- {id:'EMP-1045',name:'Kabir Shah',desig:'Visual Designer',team:'Design',mgr:'EMP-1010',used:{annual:17,sick:3,casual:4}},
- {id:'EMP-1021',name:'Sanjay Pillai',desig:'Senior Engineer',team:'Engineering',mgr:'EMP-1020',used:{annual:5,sick:1,casual:0}},
- {id:'EMP-1022',name:'Neha Kapoor',desig:'Software Engineer',team:'Engineering',mgr:'EMP-1020',used:{annual:2,sick:0,casual:1}},
- {id:'EMP-1023',name:'Imran Sheikh',desig:'QA Engineer',team:'Engineering',mgr:'EMP-1020',used:{annual:8,sick:2,casual:3}},
-];
-const holidays=[
- ['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']
-].map(([d,n])=>({d,n}));
-const holMap=Object.fromEntries(holidays.map(h=>[h.d,h.n]));
-let reqs=[
- {no:'LV-2026-0212',emp:'EMP-1045',appr:'EMP-1010',kind:'leave',type:'sick',from:'2026-10-12',to:'2026-10-12',half:false,days:1,reason:'Fever, visiting the doctor this morning.',status:'Pending',created:'2026-10-12 08:02',hist:[['Submitted','2026-10-12 08:02']]},
- {no:'LV-2026-0187',emp:'EMP-1042',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-14',to:'2026-10-16',half:false,days:3,reason:'Family function out of town.',status:'Pending',created:'2026-10-08 10:12',hist:[['Submitted','2026-10-08 10:12']]},
- {no:'LV-2026-0213',emp:'EMP-1045',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-14',to:'2026-10-15',half:false,days:2,reason:'Short trip with family.',status:'Pending',created:'2026-10-09 18:30',hist:[['Submitted','2026-10-09 18:30']]},
- {no:'WFH-2026-0125',emp:'EMP-1043',appr:'EMP-1010',kind:'wfh',from:'2026-10-14',to:'2026-10-14',days:1,reason:'Internet installation at home.',status:'Pending',created:'2026-10-09 12:44',hist:[['Submitted','2026-10-09 12:44']]},
- {no:'LV-2026-0211',emp:'EMP-1044',appr:'EMP-1010',kind:'leave',type:'casual',from:'2026-10-15',to:'2026-10-15',half:true,days:0.5,reason:'Bank work in the afternoon.',status:'Pending',created:'2026-10-10 09:20',hist:[['Submitted','2026-10-10 09:20']]},
- {no:'LV-2026-0201',emp:'EMP-1043',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-12',to:'2026-10-13',half:false,days:2,reason:'Personal work.',status:'Approved',created:'2026-10-06 15:00',hist:[['Submitted','2026-10-06 15:00'],['Approved by Arjun Mehta','2026-10-06 17:10']]},
- {no:'WFH-2026-0112',emp:'EMP-1042',appr:'EMP-1010',kind:'wfh',from:'2026-10-12',to:'2026-10-12',days:1,reason:'Plumber visit at home.',status:'Approved',created:'2026-10-05 09:40',hist:[['Submitted','2026-10-05 09:40'],['Approved by Arjun Mehta','2026-10-05 11:02']]},
- {no:'LV-2026-0190',emp:'EMP-1044',appr:'EMP-1010',kind:'leave',type:'annual',from:'2026-10-26',to:'2026-10-30',half:false,days:5,reason:'Vacation.',status:'Approved',created:'2026-09-30 11:00',hist:[['Submitted','2026-09-30 11:00'],['Approved by Arjun Mehta','2026-10-01 09:30']]},
- {no:'LV-2026-0139',emp:'EMP-1042',appr:'EMP-1010',kind:'leave',type:'casual',from:'2026-08-28',to:'2026-08-28',half:true,days:0.5,reason:'Bank work.',status:'Rejected',rej:'Sprint demo scheduled that afternoon. Please pick another day.',created:'2026-08-26 16:20',hist:[['Submitted','2026-08-26 16:20'],['Rejected by Arjun Mehta','2026-08-27 09:15']]},
- {no:'LV-2026-0164',emp:'EMP-1042',appr:'EMP-1010',kind:'leave',type:'sick',from:'2026-09-22',to:'2026-09-22',half:false,days:1,reason:'Fever.',status:'Approved',created:'2026-09-22 08:05',hist:[['Submitted','2026-09-22 08:05'],['Approved by Arjun Mehta','2026-09-22 08:41']]},
- {no:'LV-2026-0210',emp:'EMP-1022',appr:'EMP-1020',kind:'leave',type:'annual',from:'2026-10-19',to:'2026-10-20',half:false,days:1,reason:'Long weekend plan.',status:'Pending',created:'2026-10-10 14:05',hist:[['Submitted','2026-10-10 14:05']]},
-];
+/* =============== shared browser store (stand-in until the D1 backend exists) =============== */
+const STORE_KEY='leavedesk.v1';
+const INDIA_2026=[['2026-01-01','New Year’s Day'],['2026-01-26','Republic Day'],['2026-03-04','Holi'],['2026-05-01','Labour Day'],['2026-08-15','Independence Day'],['2026-10-02','Gandhi Jayanti'],['2026-10-20','Dussehra'],['2026-11-08','Diwali'],['2026-11-09','Diwali (Day 2)'],['2026-12-25','Christmas']];
+const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
+function blankDB(){return {v:1,teams:[],emps:[],teamLeads:{},holidays:INDIA_2026.map(([d,n])=>({d,n})),reqs:[],att:{},imports:[],audit:[],seq:{LV:0,WFH:0}}}
+function readStore(){try{const d=JSON.parse(localStorage.getItem(STORE_KEY));if(d&&d.v===1)return d}catch(e){}return null}
+let DB=Object.assign(blankDB(),readStore()||{});
+function saveDB(){try{localStorage.setItem(STORE_KEY,JSON.stringify(DB))}catch(e){}}
+function reloadDB(){const d=readStore();if(d){DB=Object.assign(blankDB(),d);return true}return false}
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function stamp(){return todayISO()+' '+new Date().toTimeString().slice(0,5)}
+function nextReqNo(kind){const k=kind==='wfh'?'WFH':'LV';DB.seq[k]=(DB.seq[k]||0)+1;return `${k}-${new Date().getFullYear()}-${String(DB.seq[k]).padStart(4,'0')}`}
+function usedDays(empId,type){const y=todayISO().slice(0,4);return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Approved'&&r.from.startsWith(y)).reduce((a,r)=>a+r.days,0)}
+function pendingDays(empId,type){return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Pending').reduce((a,r)=>a+r.days,0)}
 
-/* =============== helpers =============== */
+/* =============== manager app =============== */
+const TODAY=todayISO();
+const TOTALS={annual:LEAVE_TYPES.annual.total,sick:LEAVE_TYPES.sick.total,casual:LEAVE_TYPES.casual.total};
+const TLABEL={annual:'Annual',sick:'Sick',casual:'Casual'};
+const SESSION_KEY='leavedesk.manager';
 const $=s=>document.querySelector(s);
 const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const P=s=>new Date(s+'T00:00');
@@ -303,8 +287,9 @@ const fmt=(s,o={day:'numeric',month:'short'})=>P(s.slice(0,10)).toLocaleDateStri
 const range=r=>r.from===r.to?fmt(r.from):`${fmt(r.from)} – ${fmt(r.to)}`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ini=n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
-const person=id=>people.find(p=>p.id===id);
-const nowStamp=()=>TODAY+' '+new Date().toTimeString().slice(0,5);
+const person=id=>DB.emps.find(p=>p.id===id)||{id,name:'Former employee',desig:'',team:'',active:false};
+const nameOf=id=>person(id).name;
+const holMap=()=>Object.fromEntries(DB.holidays.map(h=>[h.d,h.n]));
 const daysBetween=(a,b)=>Math.round((P(b)-P(a))/864e5);
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('.phone').appendChild(t);setTimeout(()=>t.remove(),3000)}
 function closeSheet(){$('#overlay').innerHTML=''}
@@ -320,21 +305,19 @@ const ICON={
  right:'<path d="M9 18l6-6-6-6"/>',left:'<path d="M15 18l-6-6 6-6"/>',
  out:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
  lock:'<rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/>',
- link:'<path d="M10 14a4 4 0 005.700 0l3-3a4 4 0 00-5.700-5.700l-1 1M14 10a4 4 0 00-5.700 0l-3 3a4 4 0 005.700 5.700l1-1"/>',
 };
 const ic=n=>`<svg viewBox="0 0 24 24">${ICON[n]}</svg>`;
-function workdays(from,to,half){
-  let n=0;for(let d=P(from);d<=P(to);d.setDate(d.getDate()+1)){if(d.getDay()===0||d.getDay()===6||holMap[iso(d)])continue;n++}
-  return half?n*.5:n;
-}
 
 /* =============== state =============== */
-let me=null, tab='home', pendingLink=null;
+let meId=null;
+try{meId=localStorage.getItem(SESSION_KEY)}catch(e){}
+let tab='home', pendingLink=null;
 let apFilter='Pending', apKind='All';
-let calMonth=new Date(2026,9,1), calSel=null;
-function mine(){return reqs.filter(r=>r.appr===me.id)}
-function team(){return people.filter(p=>p.mgr===me.id)}
-function remaining(p,type){return TOTALS[type]-p.used[type]}
+let calMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1), calSel=null;
+const me=()=>DB.emps.find(e=>e.id===meId&&e.active&&['manager','admin'].includes(e.role))||null;
+const mine=()=>DB.reqs.filter(r=>r.appr===meId);
+const team=()=>DB.emps.filter(p=>p.mgr===meId&&p.active);
+const remaining=(p,type)=>TOTALS[type]-usedDays(p.id,type);
 function go(t){tab=t;closeSheet();render();$('#view').scrollTop=0}
 
 /* =============== secure link + sign in =============== */
@@ -342,16 +325,19 @@ function readHash(){
   const m=location.hash.match(/review\/([A-Z]+-\d{4}-\d+)/i);
   pendingLink=m?m[1].toUpperCase():null;
 }
-window.addEventListener('hashchange',()=>{readHash();if(me&&pendingLink){render();openReview(pendingLink)}else render()});
+window.addEventListener('hashchange',()=>{readHash();if(me()&&pendingLink){render();openReview(pendingLink)}else render()});
 function vGate(){
-  const r=pendingLink&&reqs.find(x=>x.no===pendingLink);
+  const list=DB.emps.filter(e=>e.active&&['manager','admin'].includes(e.role));
+  if(!list.length)return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:26px">No managers yet</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:8px">An admin needs to add a manager (an employee with the Manager role) before anyone can sign in here.</p>
+    <a class="btn" style="display:block;text-align:center;text-decoration:none" href="admin.html">Open Admin</a></div></div>`;
   return `<div class="gate"><div class="card">
     <div class="logo">L</div>
     <h1 style="font-size:26px">Manager sign in</h1>
     <p style="color:var(--mute);font-size:14px;margin-top:6px">${pendingLink?`You opened a review link for <b>${esc(pendingLink)}</b>. Sign in to continue.`:'Sign in to review your team’s requests.'}</p>
     <div class="lock">${ic('lock')}<span>The link alone gives no access. After sign-in we check that <b>you</b> are the assigned approver.</span></div>
     <label class="f">Sign in as <small style="color:var(--mute)">(demo)</small></label>
-    <select class="in" id="g_user">${Object.values(MANAGERS).map(m=>`<option value="${m.id}">${esc(m.name)} · ${esc(m.team)}</option>`).join('')}</select>
+    <select class="in" id="g_user">${list.map(m=>`<option value="${esc(m.id)}">${esc(m.name)} · ${esc(m.team||'No team')}</option>`).join('')}</select>
     <label class="f">Password</label>
     <input class="in" type="password" id="g_pw" placeholder="Demo: any value" onkeydown="if(event.key==='Enter')signIn()">
     <div id="g_err"></div>
@@ -360,14 +346,15 @@ function vGate(){
 }
 function signIn(){
   if(!$('#g_pw').value){$('#g_err').innerHTML='<div class="err">Enter your password.</div>';return}
-  me=MANAGERS[$('#g_user').value];tab='home';render();
+  meId=$('#g_user').value;try{localStorage.setItem(SESSION_KEY,meId)}catch(e){}
+  tab='home';render();
   if(pendingLink){tab='approvals';apFilter='All';render();openReview(pendingLink)}
 }
-function signOut(){me=null;closeSheet();try{history.replaceState(null,'',location.pathname)}catch(e){}pendingLink=null;render()}
+function signOut(){meId=null;try{localStorage.removeItem(SESSION_KEY)}catch(e){}closeSheet();try{history.replaceState(null,'',location.pathname)}catch(e){}pendingLink=null;render()}
 
 /* =============== home =============== */
 function status(p,ds){
-  const r=reqs.find(x=>x.emp===p.id&&x.status==='Approved'&&ds>=x.from&&ds<=x.to);
+  const r=DB.reqs.find(x=>x.emp===p.id&&x.status==='Approved'&&ds>=x.from&&ds<=x.to);
   return r?(r.kind==='wfh'?{s:'WFH',r}:{s:'Leave',r}):null;
 }
 function urgency(r){
@@ -388,9 +375,11 @@ function vHome(){
   const away=team().map(p=>[p,status(p,TODAY)]).filter(x=>x[1]);
   const wfh=away.filter(x=>x[1].s==='WFH').length, leave=away.length-wfh;
   const week=[];for(let i=1;i<=7;i++){const d=new Date(P(TODAY));d.setDate(d.getDate()+i);const ds=iso(d);
-    const who=team().filter(p=>reqs.some(r=>r.emp===p.id&&r.status==='Approved'&&ds>=r.from&&ds<=r.to&&r.kind==='leave'));
+    const who=team().filter(p=>DB.reqs.some(r=>r.emp===p.id&&r.status==='Approved'&&r.kind==='leave'&&ds>=r.from&&ds<=r.to));
     if(who.length)week.push([ds,who])}
-  return `<header class="top"><div class="t"><small>Monday, 12 October</small><h1>Hi, ${esc(me.name.split(' ')[0])} 👋</h1></div><button class="avatar" onclick="go('profile')">${ini(me.name)}</button></header>
+  const m=me(), dateStr=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  return `<header class="top"><div class="t"><small>${dateStr}</small><h1>Hi, ${esc(m.name.split(' ')[0])} 👋</h1></div><button class="avatar" onclick="go('profile')">${ini(m.name)}</button></header>
+  ${team().length?'':'<div class="warn" style="margin-top:0;margin-bottom:12px">Nobody reports to you yet. An admin can assign people to you in Teams &amp; Reporting.</div>'}
   <div class="kpis">
     <div class="kpi g"><small>Waiting for you</small><b>${pend.length}</b></div>
     <div class="kpi"><small>Away today</small><b style="color:var(--brand)">${leave}</b></div>
@@ -401,7 +390,7 @@ function vHome(){
     ${pend.length?pend.slice(0,4).map(pendRow).join(''):'<div class="card" style="text-align:center;padding:26px;color:var(--mute)">🎉 All caught up. No pending requests.</div>'}
   </div><div>
     <div class="sec" style="margin-top:6px"><h2>Today</h2></div>
-    ${away.length?away.map(([p,s])=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${s.s==='WFH'?'Working from home':TLABEL[s.r.type]+' leave'}</small></div><span class="tag ${s.s==='WFH'?'info':'ok'}">${s.s}</span></div>`).join(''):'<div class="card" style="color:var(--mute);text-align:center">Everyone is in the office.</div>'}
+    ${away.length?away.map(([p,s])=>`<div class="card who" style="cursor:default"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${s.s==='WFH'?'Working from home':TLABEL[s.r.type]+' leave'}</small></div><span class="tag ${s.s==='WFH'?'info':'ok'}">${s.s}</span></div>`).join(''):'<div class="card" style="color:var(--mute);text-align:center">Nobody is away today.</div>'}
     <div class="sec"><h2>Coming up this week</h2><a onclick="go('calendar')">Calendar</a></div>
     ${week.length?week.map(([ds,who])=>`<div class="card hol"><div class="d"><b>${P(ds).getDate()}</b><small>${P(ds).toLocaleDateString('en-GB',{weekday:'short'})}</small></div><div class="m"><b>${who.map(p=>esc(p.name.split(' ')[0])).join(', ')}</b><small>on leave</small></div></div>`).join(''):'<div class="card" style="color:var(--mute);text-align:center">No planned leave this week.</div>'}
   </div></div>`;
@@ -424,36 +413,36 @@ function vApprovals(){
 }
 function conflicts(r){
   const p=person(r.emp);
-  return reqs.filter(x=>x.no!==r.no&&x.emp!==r.emp&&person(x.emp).team===p.team&&['Approved','Pending'].includes(x.status)&&x.from<=r.to&&x.to>=r.from);
+  return DB.reqs.filter(x=>x.no!==r.no&&x.emp!==r.emp&&person(x.emp).team===p.team&&['Approved','Pending'].includes(x.status)&&x.from<=r.to&&x.to>=r.from);
 }
 function openReview(no){
-  const r=reqs.find(x=>x.no===no);
-  if(!me){pendingLink=no;render();return}
+  const r=DB.reqs.find(x=>x.no===no);
+  if(!me()){pendingLink=no;render();return}
   if(!r){sheet(`<h2 style="font-size:22px">Request not found</h2><p style="color:var(--mute);margin-top:8px">No request with ID ${esc(no)}.</p><button class="btn" onclick="closeSheet()">Close</button>`);return}
-  if(r.appr!==me.id){
+  if(r.appr!==meId){
     sheet(`<div style="text-align:center;padding:10px 0"><div style="width:60px;height:60px;border-radius:50%;background:var(--red-l);color:var(--red);display:grid;place-items:center;margin:0 auto 12px">${ic('lock')}</div>
       <h2 style="font-size:22px">You can’t review this request</h2>
-      <p style="color:var(--mute);margin-top:8px;font-size:14px">${esc(r.no)} is assigned to <b>${esc(MANAGERS[r.appr].name)}</b>. You’re signed in as <b>${esc(me.name)}</b>. Having the link isn’t enough, only the assigned approver can open it.</p>
+      <p style="color:var(--mute);margin-top:8px;font-size:14px">${esc(r.no)} is assigned to <b>${esc(nameOf(r.appr))}</b>. You’re signed in as <b>${esc(me().name)}</b>. Having the link isn’t enough, only the assigned approver can open it.</p>
       <button class="btn" onclick="closeSheet()">Close</button></div>`);
     return;
   }
   const p=person(r.emp), isL=r.kind==='leave', pend=r.status==='Pending';
   const rem=isL?remaining(p,r.type):null, short=isL&&r.days>rem;
   const cf=conflicts(r);
-  const teamSize=team().length;
+  const teamSize=Math.max(team().length,1);
   const away=new Set(cf.map(x=>x.emp)).size+1;
   const colors={Submitted:'var(--amber)',Approved:'var(--green)',Rejected:'var(--red)',Cancelled:'var(--mute)'};
-  sheet(`<div class="row" style="align-items:flex-start"><div style="flex:1"><h2 style="font-size:22px">${esc(p.name)}</h2><small style="color:var(--mute)">${esc(p.desig)} · ${esc(r.no)}</small></div><span class="pill ${r.status}" style="flex:none">${r.status}</span></div>
+  sheet(`<div class="row" style="align-items:flex-start"><div style="flex:1"><h2 style="font-size:22px">${esc(p.name)}</h2><small style="color:var(--mute)">${esc(p.desig||'')} · ${esc(r.no)}</small></div><span class="pill ${r.status}" style="flex:none">${r.status}</span></div>
    <div class="card" style="margin-top:14px;padding:6px 16px">
      <div class="kv"><span>Type</span><b>${r.kind==='wfh'?'Work from home':TLABEL[r.type]+' leave'}</b></div>
      <div class="kv"><span>Dates</span><b>${range(r)}</b></div>
      <div class="kv"><span>Duration</span><b>${r.days} day${r.days===1?'':'s'}${r.half?' (half day)':''}</b></div>
-     <div class="kv"><span>Applied</span><b>${fmt(r.created,{day:'numeric',month:'short'})}</b></div>
+     <div class="kv"><span>Applied</span><b>${fmt(r.created)}</b></div>
      <div class="kv"><span>Reason</span><b style="max-width:62%;text-align:right">${esc(r.reason)}</b></div></div>
    ${isL?`<div class="card"><div class="row"><b style="flex:none;font-size:14px">${TLABEL[r.type]} balance</b><span style="text-align:right;font-size:14px"><b>${rem}</b> left → <b style="color:${short?'var(--red)':'var(--green)'}">${short?'short by '+(r.days-rem):rem-r.days}</b></span></div>
-     <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,p.used[r.type]/TOTALS[r.type]*100)}%"></i></div>
-     <small style="color:var(--mute)">${p.used[r.type]} of ${TOTALS[r.type]} used this year. Deducted only on approval.</small></div>`:''}
-   ${cf.length?`<div class="warn"><b>${cf.length} overlapping request${cf.length===1?'':'s'} in your team</b><br>${cf.map(x=>`${esc(person(x.emp).name)} · ${range(x)} <small>(${x.status.toLowerCase()})</small>`).join('<br>')}<br><small>If approved, ${away} of ${teamSize} would be away.</small></div>`:`<div class="good">No overlaps with your team on these dates.</div>`}
+     <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,usedDays(p.id,r.type)/TOTALS[r.type]*100)}%"></i></div>
+     <small style="color:var(--mute)">${usedDays(p.id,r.type)} of ${TOTALS[r.type]} used this year. Deducted only on approval.</small></div>`:''}
+   ${cf.length?`<div class="warn"><b>${cf.length} overlapping request${cf.length===1?'':'s'} in the team</b><br>${cf.map(x=>`${esc(person(x.emp).name)} · ${range(x)} <small>(${x.status.toLowerCase()})</small>`).join('<br>')}<br><small>If approved, ${away} of ${teamSize} would be away.</small></div>`:`<div class="good">No overlaps with the team on these dates.</div>`}
    ${short&&pend?`<div class="err">Not enough ${TLABEL[r.type].toLowerCase()} balance. Approval is blocked. Ask the employee to change type or dates, or contact HR.</div>`:''}
    ${r.rej?`<div class="err"><b>Rejection reason</b><br>${esc(r.rej)}</div>`:''}
    <div class="sec" style="margin:16px 2px 6px"><h2 style="font-size:16px">History</h2></div>
@@ -464,23 +453,25 @@ function openReview(no){
       <div id="rj_err"></div>
       <div class="row" style="margin-top:14px"><button class="btn line" style="margin-top:0" onclick="$('#rj').style.display='none';$('#acts').style.display='flex'">Back</button><button class="btn no" style="margin-top:0" onclick="doReject('${r.no}')">Confirm reject</button></div></div>
      <div id="acts" class="row" style="margin-top:18px"><button class="btn line" style="margin-top:0" onclick="$('#acts').style.display='none';$('#rj').style.display='block'">Reject</button><button class="btn ok" style="margin-top:0" ${short?'disabled':''} onclick="doApprove('${r.no}')">Approve</button></div>`:''}
-   <button class="btn line" style="margin-top:12px" onclick="copyLink('${r.no}')">${''}Copy secure review link</button>`);
+   <button class="btn line" style="margin-top:12px" onclick="copyLink('${r.no}')">Copy secure review link</button>`);
 }
 function copyLink(no){
   const url=location.href.split('#')[0]+'#/review/'+no;
   (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>toast('Link copied. Opening it still requires sign-in.'),()=>toast(url));
 }
 function decide(no,status,extra){
-  const r=reqs.find(x=>x.no===no);
-  if(!r||r.appr!==me.id){toast('Not authorized');return null}
+  reloadDB();
+  const r=DB.reqs.find(x=>x.no===no);
+  if(!r||r.appr!==meId){toast('Not authorized');return null}
   if(r.status!=='Pending'){toast(`Already ${r.status.toLowerCase()}`);closeSheet();render();return null}
-  r.status=status;r.hist.push([`${status} by ${me.name}`,nowStamp()]);Object.assign(r,extra||{});return r;
+  r.status=status;r.hist.push([`${status} by ${me().name}`,stamp()]);Object.assign(r,extra||{});saveDB();return r;
 }
 function doApprove(no){
-  const r0=reqs.find(x=>x.no===no),p=person(r0.emp);
+  reloadDB();
+  const r0=DB.reqs.find(x=>x.no===no);if(!r0)return;
+  const p=person(r0.emp);
   if(r0.kind==='leave'&&r0.days>remaining(p,r0.type)){toast('Insufficient balance');return}
   const r=decide(no,'Approved');if(!r)return;
-  if(r.kind==='leave')p.used[r.type]+=r.days;
   closeSheet();render();toast(`Approved. ${p.name.split(' ')[0]} has been notified.`);
 }
 function doReject(no){
@@ -493,24 +484,24 @@ function doReject(no){
 /* =============== calendar =============== */
 function vCalendar(){
   const first=new Date(calMonth.getFullYear(),calMonth.getMonth(),1),n=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,0).getDate();
-  const off=(first.getDay()+6)%7;
+  const off=(first.getDay()+6)%7, hm=holMap();
   const tm=new Set(team().map(p=>p.id));
-  const rows=reqs.filter(r=>tm.has(r.emp)&&['Approved','Pending'].includes(r.status));
+  const rows=DB.reqs.filter(r=>tm.has(r.emp)&&['Approved','Pending'].includes(r.status));
   let g=['M','T','W','T','F','S','S'].map(d=>`<div class="dow">${d}</div>`).join('')+'<div></div>'.repeat(off);
   for(let i=1;i<=n;i++){
     const ds=iso(new Date(calMonth.getFullYear(),calMonth.getMonth(),i)),dw=P(ds).getDay(),we=dw===0||dw===6;
     const rs=we?[]:rows.filter(r=>ds>=r.from&&ds<=r.to);
     const dots=rs.slice(0,4).map(r=>`<i class="${r.status==='Pending'?'p':r.kind==='wfh'?'w':''}"></i>`).join('');
-    g+=`<button class="cell ${we?'we':''} ${holMap[ds]?'hol':''} ${ds===TODAY?'today':''} ${calSel===ds?'sel':''}" onclick="calSel='${ds}';render()">${i}<span class="dayc">${dots}</span></button>`;
+    g+=`<button class="cell ${we?'we':''} ${hm[ds]?'hol':''} ${ds===TODAY?'today':''} ${calSel===ds?'sel':''}" onclick="calSel='${ds}';render()">${i}<span class="dayc">${dots}</span></button>`;
   }
   let det='';
   if(calSel){
     const rs=rows.filter(r=>calSel>=r.from&&calSel<=r.to&&![0,6].includes(P(calSel).getDay()));
-    det=`<div class="card"><b>${fmt(calSel,{weekday:'long',day:'numeric',month:'long'})}</b>${holMap[calSel]?`<br><small style="color:var(--brand)">${esc(holMap[calSel])}</small>`:''}
+    det=`<div class="card"><b>${fmt(calSel,{weekday:'long',day:'numeric',month:'long'})}</b>${hm[calSel]?`<br><small style="color:var(--brand)">${esc(hm[calSel])}</small>`:''}
       ${rs.length?rs.map(r=>`<div class="row" style="margin-top:10px;cursor:pointer" onclick="openReview('${r.no}')"><div style="flex:1"><b style="font-size:14px">${esc(person(r.emp).name)}</b><br><small style="color:var(--mute)">${r.kind==='wfh'?'WFH':TLABEL[r.type]+' leave'}</small></div><span class="pill ${r.status}" style="flex:none">${r.status}</span></div>`).join(''):'<br><small style="color:var(--mute)">Nobody away.</small>'}</div>`;
   }
-  const mh=holidays.filter(h=>h.d.startsWith(iso(calMonth).slice(0,7)));
-  return `<header class="top"><div class="t"><small>${esc(me.team)} team</small><h1>Team calendar</h1></div></header>
+  const mh=[...DB.holidays].sort((a,b)=>a.d.localeCompare(b.d)).filter(h=>h.d.startsWith(iso(calMonth).slice(0,7)));
+  return `<header class="top"><div class="t"><small>${esc(me().team||'Your')} team</small><h1>Team calendar</h1></div></header>
   <div class="cols"><div><div class="card"><div class="calhead"><button class="iconbtn" onclick="calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);calSel=null;render()">${ic('left')}</button><b>${calMonth.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</b><button class="iconbtn" onclick="calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);calSel=null;render()">${ic('right')}</button></div>
   <div class="grid">${g}</div>
   <div class="legend"><span style="--c:var(--brand)">Leave</span><span style="--c:var(--amber)">Pending</span><span style="--c:var(--plum)">WFH</span></div></div>${det}</div>
@@ -520,44 +511,48 @@ function vCalendar(){
 
 /* =============== team =============== */
 function vTeam(){
-  return `<header class="top"><div class="t"><small>${esc(me.team)} · ${team().length} people</small><h1>My team</h1></div></header>
-  <div class="list2">${team().map(p=>{const s=status(p,TODAY),pe=reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length;
-   return `<div class="card who" onclick="openMember('${p.id}')"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${esc(p.desig)}</small><small>${TLABEL.annual}: ${remaining(p,'annual')} left${pe?` · ${pe} pending`:''}</small></div>
-    <span class="tag ${s?(s.s==='WFH'?'info':'soon'):'ok'}">${s?s.s:'In'}</span></div>`}).join('')}</div>`;
+  const t=team();
+  return `<header class="top"><div class="t"><small>${esc(me().team||'No team')} · ${t.length} ${t.length===1?'person':'people'}</small><h1>My team</h1></div></header>
+  ${t.length?`<div class="list2">${t.map(p=>{const s=status(p,TODAY),pe=DB.reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length;
+   return `<div class="card who" onclick="openMember('${p.id}')"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${esc(p.desig||'')}</small><small>Annual: ${remaining(p,'annual')} left${pe?` · ${pe} pending`:''}</small></div>
+    <span class="tag ${s?(s.s==='WFH'?'info':'soon'):'ok'}">${s?s.s:'In'}</span></div>`}).join('')}</div>`
+   :'<div class="empty">Nobody reports to you yet.</div>'}`;
 }
 function openMember(id){
-  const p=person(id),rs=reqs.filter(r=>r.emp===id).sort((a,b)=>b.from.localeCompare(a.from));
-  sheet(`<div class="row"><div class="avatar" style="flex:none;width:52px;height:52px">${ini(p.name)}</div><div style="flex:1"><h2 style="font-size:22px">${esc(p.name)}</h2><small style="color:var(--mute)">${esc(p.desig)} · ${p.id}</small></div></div>
-   <div class="card" style="margin-top:14px">${Object.keys(TOTALS).map(t=>`<div style="margin-bottom:12px"><div class="row"><b style="font-size:14px">${TLABEL[t]}</b><span style="text-align:right;font-size:13px;color:var(--mute)">${remaining(p,t)} of ${TOTALS[t]} left</span></div><div class="bar" style="margin-top:6px"><i style="width:${p.used[t]/TOTALS[t]*100}%"></i></div></div>`).join('')}</div>
+  const p=person(id),rs=DB.reqs.filter(r=>r.emp===id).sort((a,b)=>b.from.localeCompare(a.from));
+  sheet(`<div class="row"><div class="avatar" style="flex:none;width:52px;height:52px">${ini(p.name)}</div><div style="flex:1"><h2 style="font-size:22px">${esc(p.name)}</h2><small style="color:var(--mute)">${esc(p.desig||'')} · ${esc(p.id)}</small></div></div>
+   <div class="card" style="margin-top:14px">${Object.keys(TOTALS).map(t=>`<div style="margin-bottom:12px"><div class="row"><b style="font-size:14px">${TLABEL[t]}</b><span style="text-align:right;font-size:13px;color:var(--mute)">${remaining(p,t)} of ${TOTALS[t]} left</span></div><div class="bar" style="margin-top:6px"><i style="width:${usedDays(p.id,t)/TOTALS[t]*100}%"></i></div></div>`).join('')}</div>
    <div class="sec" style="margin:14px 2px 8px"><h2 style="font-size:16px">Recent requests</h2></div>
    ${rs.slice(0,5).map(r=>`<div class="card who" onclick="openReview('${r.no}')"><div class="m"><b>${r.kind==='wfh'?'Work from home':TLABEL[r.type]+' leave'}</b><small>${range(r)} · ${r.days} day${r.days===1?'':'s'}</small></div><span class="pill ${r.status}">${r.status}</span></div>`).join('')||'<div class="empty">No requests yet.</div>'}`);
 }
 
 /* =============== reports =============== */
 function vReports(){
-  const t=team();
-  const tot=Object.keys(TOTALS).map(k=>[k,t.reduce((a,p)=>a+p.used[k],0),t.length*TOTALS[k]]);
-  const wfh=reqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&t.some(p=>p.id===r.emp)&&r.from.startsWith('2026-10'));
-  return `<header class="top"><div class="t"><small>${esc(me.team)} · 2026</small><h1>Reports</h1></div></header>
+  const t=team(), ym=TODAY.slice(0,7);
+  const tot=Object.keys(TOTALS).map(k=>[k,t.reduce((a,p)=>a+usedDays(p.id,k),0),t.length*TOTALS[k]]);
+  const wfh=DB.reqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&t.some(p=>p.id===r.emp)&&r.from.startsWith(ym));
+  const monthName=new Date().toLocaleDateString('en-GB',{month:'long'});
+  return `<header class="top"><div class="t"><small>${esc(me().team||'Your team')} · ${new Date().getFullYear()}</small><h1>Reports</h1></div></header>
   <div class="kpis"><div class="kpi g"><small>Leave days used</small><b>${tot.reduce((a,x)=>a+x[1],0)}</b></div>
-   <div class="kpi"><small>Approved this month</small><b style="color:var(--green)">${mine().filter(r=>r.status==='Approved'&&r.created.startsWith('2026-10')).length}</b></div>
+   <div class="kpi"><small>Approved this month</small><b style="color:var(--green)">${mine().filter(r=>r.status==='Approved'&&r.created.startsWith(ym)).length}</b></div>
    <div class="kpi"><small>Rejected (all time)</small><b style="color:var(--red)">${mine().filter(r=>r.status==='Rejected').length}</b></div>
-   <div class="kpi"><small>WFH days (Oct)</small><b style="color:var(--plum)">${wfh.reduce((a,r)=>a+r.days,0)}</b></div></div>
-  <div class="cols"><div><div class="sec" style="margin-top:6px"><h2>Leave used by type</h2></div>
-  ${tot.map(([k,u,c])=>`<div class="card"><div class="row"><b>${TLABEL[k]}</b><span style="text-align:right;color:var(--mute);font-size:13px">${u} of ${c} days</span></div><div class="bar" style="margin-top:10px"><i style="width:${u/c*100}%"></i></div></div>`).join('')}</div>
+   <div class="kpi"><small>WFH days (${monthName})</small><b style="color:var(--plum)">${wfh.reduce((a,r)=>a+r.days,0)}</b></div></div>
+  ${t.length?`<div class="cols"><div><div class="sec" style="margin-top:6px"><h2>Leave used by type</h2></div>
+  ${tot.map(([k,u,c])=>`<div class="card"><div class="row"><b>${TLABEL[k]}</b><span style="text-align:right;color:var(--mute);font-size:13px">${u} of ${c} days</span></div><div class="bar" style="margin-top:10px"><i style="width:${c?u/c*100:0}%"></i></div></div>`).join('')}</div>
   <div><div class="sec" style="margin-top:6px"><h2>By person</h2></div>
   <div class="tablewrap"><table><tr><th>Name</th><th>Annual</th><th>Sick</th><th>Casual</th><th>Pending</th></tr>
-  ${t.map(p=>`<tr><td>${esc(p.name)}</td><td>${remaining(p,'annual')}</td><td>${remaining(p,'sick')}</td><td>${remaining(p,'casual')}</td><td>${reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length}</td></tr>`).join('')}</table></div>
-  <p style="color:var(--mute);font-size:12px;margin-top:8px">Balances show days remaining.</p></div></div>`;
+  ${t.map(p=>`<tr><td>${esc(p.name)}</td><td>${remaining(p,'annual')}</td><td>${remaining(p,'sick')}</td><td>${remaining(p,'casual')}</td><td>${DB.reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length}</td></tr>`).join('')}</table></div>
+  <p style="color:var(--mute);font-size:12px;margin-top:8px">Balances show days remaining.</p></div></div>`:'<div class="empty">Reports appear once people report to you.</div>'}`;
 }
 
 /* =============== profile + shell =============== */
 function vProfile(){
+  const m=me();
   return `<header class="top"><div class="t"><small>Signed in</small><h1>Profile</h1></div></header>
-  <div class="prof"><div class="avatar">${ini(me.name)}</div><h1>${esc(me.name)}</h1><p>${esc(me.desig)}</p></div>
+  <div class="prof"><div class="avatar">${ini(m.name)}</div><h1>${esc(m.name)}</h1><p>${esc(m.desig||'Manager')}</p></div>
   <div class="card" style="margin-top:18px;padding:6px 16px">
-   <div class="kv"><span>Employee ID</span><b>${me.id}</b></div><div class="kv"><span>Email</span><b>${esc(me.email)}</b></div>
-   <div class="kv"><span>Team</span><b>${esc(me.team)}</b></div><div class="kv"><span>Direct reports</span><b>${team().length}</b></div><div class="kv"><span>Role</span><b>Manager</b></div></div>
+   <div class="kv"><span>Employee ID</span><b>${esc(m.id)}</b></div><div class="kv"><span>Email</span><b>${esc(m.email)}</b></div>
+   <div class="kv"><span>Team</span><b>${esc(m.team||'—')}</b></div><div class="kv"><span>Direct reports</span><b>${team().length}</b></div><div class="kv"><span>Role</span><b>${esc(m.role)}</b></div></div>
   <button class="btn line" onclick="signOut()">Sign out</button>`;
 }
 function openMore(){
@@ -568,9 +563,9 @@ function openMore(){
 }
 const VIEWS={home:vHome,approvals:vApprovals,calendar:vCalendar,team:vTeam,reports:vReports,profile:vProfile};
 function render(){
+  reloadDB();
   const st=$('#view').scrollTop;
-  document.body.classList.toggle('nonav',!me);
-  if(!me){$('#view').innerHTML=vGate();$('#nav').style.display='none';return}
+  if(!me()){meId=null;$('#view').innerHTML=vGate();$('#nav').style.display='none';return}
   $('#nav').style.display='';
   $('#view').innerHTML='<div class="page'+(tab==='profile'?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
   $('#view').scrollTop=st;
@@ -581,7 +576,9 @@ function render(){
    +`<button class="mOnly ${['reports','profile'].includes(tab)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
    +`<button class="sidelink" onclick="signOut()">${ic('out')}Sign out</button>`;
 }
+window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&me()&&!document.querySelector('#overlay .sheet')&&document.activeElement.tagName!=='TEXTAREA')render()});
 readHash();render();
+
 </script>
 </body>
 </html>
