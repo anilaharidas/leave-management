@@ -282,6 +282,10 @@ tr.bad td{background:var(--red-l)}
 .lock{display:flex;gap:10px;align-items:center;padding:11px 13px;border-radius:12px;background:var(--brand-l);color:var(--brand-d);font-size:13px;margin:14px 0 0}
 .warnbox{background:var(--amber-l);color:var(--amber);padding:12px 14px;border-radius:14px;font-size:13px;font-weight:500;margin-bottom:12px}
 .btn:disabled{cursor:not-allowed}
+
+/* switch between views */
+nav a.vlink{display:none}
+@media(min-width:900px){nav a.vlink{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--mute);padding:12px 14px;border-radius:13px;text-decoration:none}nav a.vlink:hover{background:var(--brand-l)}}
 </style>
 </head>
 <body>
@@ -304,7 +308,7 @@ async function api(method,url,body){
   let j={};try{j=await r.json()}catch(e){}
   if(!r.ok){
     const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
-    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof render==='function')render()},0)}
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login')goLogin()},0)}
     throw err;
   }
   return j;
@@ -328,15 +332,12 @@ function loginGate(title,sub,note){
   if(BOOTING)return `<div class="gate"><div class="card" style="text-align:center;color:var(--mute)">Loading…</div></div>`;
   const logo='<div class="logo">L</div>';
   if(NEEDS_SETUP){
-    if(typeof PAGE!=='undefined'&&PAGE==='admin')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Set up LeaveDesk</h1>
+    return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Set up LeaveDesk</h1>
       <p style="color:var(--mute);font-size:14px;margin-top:6px">Create the first administrator account. You can add everyone else afterwards.</p>
       <label class="f">Your name</label><input class="in" id="s_name" autocomplete="name">
       <label class="f">Email</label><input class="in" type="email" id="s_email" autocomplete="username">
       <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
       <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
-    return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Not set up yet</h1>
-      <p style="color:var(--mute);font-size:14px;margin-top:8px">The administrator needs to finish setup first.</p>
-      <a class="btn" style="display:block;text-align:center;text-decoration:none" href="admin.html">Open Admin</a></div></div>`;
   }
   return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
     <p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>
@@ -359,8 +360,8 @@ async function submitSetup(){
   try{await api('POST','/api/auth/setup',{name,email,password:pw});NEEDS_SETUP=false;await loadState();afterAuth()}
   catch(e){gateError(e.message)}
 }
-function afterAuth(){if(typeof onAuthed==='function')onAuthed();else render()}
-async function doLogout(){try{await api('POST','/api/auth/logout',{})}catch(e){}ME=null;DB=blankDB();try{closeSheet()}catch(e){}render()}
+function afterAuth(){onAuthed()}
+async function doLogout(){try{await api('POST','/api/auth/logout',{})}catch(e){}ME=null;DB=blankDB();location.replace('/')}
 function deniedGate(title,msg){
   return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:24px">${title}</h1>
     <p style="color:var(--mute);font-size:14px;margin-top:8px">${msg}</p>
@@ -378,7 +379,38 @@ function softRefresh(){
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefresh()});
 setInterval(softRefresh,60000);
-async function boot(){try{await loadState()}catch(e){}BOOTING=false;render()}
+/* ---- one login page, role decides the app ---- */
+const HOME={admin:'/admin',manager:'/manager',employee:'/employee'};
+const ACCESS={admin:['admin'],manager:['manager','admin'],employee:['employee','manager','admin']};
+const APP_PATHS=['/admin','/manager','/employee'];
+function appKey(path){return path.split('#')[0].split('?')[0].replace(/\.html$/,'').replace(/^\/+/,'')}
+function goLogin(){location.replace('/?next='+encodeURIComponent(location.pathname+location.hash))}
+function nextTarget(){
+  const n=new URLSearchParams(location.search).get('next')||'';
+  if(!n.startsWith('/')||n.startsWith('//'))return null;
+  const k=appKey(n);
+  if(!ACCESS[k]||!ME||!ACCESS[k].includes(ME.role))return null;
+  return '/'+k+(n.includes('#')?n.slice(n.indexOf('#')):'');
+}
+function viewLinks(){
+  if(!ME)return [];
+  const all=[['admin','Admin','/admin'],['manager','Approvals','/manager'],['employee','My leave','/employee']];
+  return all.filter(([k])=>k!==PAGE&&ACCESS[k].includes(ME.role));
+}
+const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
+function onAuthed(){location.replace(nextTarget()||HOME[ME.role])}
+async function boot(){
+  try{await loadState()}catch(e){}
+  BOOTING=false;
+  if(PAGE==='login'){
+    if(ME){onAuthed();return}
+    render();return;
+  }
+  if(!ME){goLogin();return}
+  if(!ACCESS[PAGE].includes(ME.role)){location.replace(HOME[ME.role]);return}
+  render();
+}
+
 
 const PAGE='admin';
 const TODAY=todayISO();
@@ -878,6 +910,7 @@ function exportReport(){
 function openMore(){
   const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['reports','Reports','chart'],['activity','Activity log','log']];
   sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>${it.map(([k,l,i])=>`<div class="more" onclick="go('${k}')">${ic(i)}<span>${l}</span>${ic('right')}</div>`).join('')}
+   ${viewLinks().map(([k,l,h])=>`<a class="more" href="${h}" style="text-decoration:none;color:inherit">${ic('right')}<span>Switch to ${l}</span>${ic('right')}</a>`).join('')}
    <div class="more" style="color:var(--red);border:none" onclick="closeSheet();doLogout()">${ic('out')}<span>Sign out</span></div>`);
 }
 const VIEWS={dashboard:vDashboard,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
@@ -899,7 +932,7 @@ function render(){
   const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'
    +items.map(([k,l,i,c])=>`<button class="${cur===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')
-   +`<button class="mOnly ${['teams','org','reports','activity'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
+   +viewNav()+`<button class="mOnly ${['teams','org','reports','activity'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
    +`<button class="sidelink" onclick="doLogout()">${ic('out')}Sign out</button>`;
 }
 boot();

@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b4bdb">
+<title>Leave App – Employee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f2fb; --card:#fff; --ink:#1e1b33; --mute:#716d8c; --line:#e7e3f4;
+  --brand:#5b4bdb; --brand-d:#4333b8; --brand-l:#ece9fd; --grad:linear-gradient(135deg,#5b4bdb 0%,#8a4fe0 55%,#d0408f 100%);
+  --amber:#b86e00; --amber-l:#fff0d1; --green:#13875a; --green-l:#dcf5e8;
+  --red:#d6405a; --red-l:#fde6ea; --blue:#0e8fa3; --blue-l:#dff3f6; --plum:#c0398f; --plum-l:#fae4f2;
+  --r:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12101f;--card:#1c1930;--ink:#f0eefc;--mute:#a09cc0;--line:#2d2947;--brand:#8b7dff;--brand-d:#b4a9ff;--brand-l:#2a2550;
+  --amber-l:#3b2e12;--green-l:#143a2a;--red-l:#3d1b25;--blue-l:#12333a;--plum-l:#3a1b33;--amber:#f0b04a;--green:#52d49a;--red:#ff7b91;--blue:#4fc8dc;--plum:#ee7cc4}
+}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;min-width:0}
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+button,input,textarea{max-width:100%}
+.m b,.hol .m b{overflow-wrap:anywhere}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.phone{width:100%;height:100vh;height:100dvh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
+#view{flex:1;overflow-y:auto;padding:0 16px 110px;scroll-behavior:smooth}
+#view>.page{max-width:1080px;margin:0 auto}
+.narrow{max-width:620px;margin:0 auto}
+.cols{display:block}
+.list2{display:block}
+.brand,.sidelink{display:none}
+.toast{max-width:420px;margin:0 auto}
+#view::-webkit-scrollbar{display:none}
+h1,h2,.serif{font-family:Fraunces,serif;font-weight:600}
+header.top{display:flex;align-items:center;gap:12px;padding:20px 0 14px}
+header.top .t{flex:1}
+header.top .t small{color:var(--mute);font-size:13px;display:block}
+header.top .t h1{font-size:24px;line-height:1.15}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;border:none;cursor:pointer;flex:none}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 10px}
+.sec h2{font-size:18px}.sec a{font-size:13px;color:var(--brand);font-weight:600;cursor:pointer}
+.hero{background:var(--grad);color:#fff;border:none;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero small{opacity:.8;font-size:13px}
+.hero .big{font-family:Fraunces,serif;font-size:40px;line-height:1.1;margin:4px 0 12px}
+.hero .row{display:flex;gap:8px}
+.hero .chip{background:rgba(255,255,255,.16);border-radius:12px;padding:8px 12px;font-size:13px;flex:1}
+.hero .chip b{display:block;font-size:17px}
+.balances{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bal{text-align:center;padding:14px 6px}
+.ring{width:62px;height:62px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.ring span{width:48px;height:48px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:700;font-size:16px}
+.bal small{color:var(--mute);font-size:12px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qa{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:14px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:8px}
+.qa .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center}
+.qa b{font-size:15px}.qa small{color:var(--mute);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.pill.Pending{background:var(--amber-l);color:var(--amber)}
+.pill.Approved{background:var(--green-l);color:var(--green)}
+.pill.Rejected{background:var(--red-l);color:var(--red)}
+.pill.Cancelled{background:var(--line);color:var(--mute)}
+.req{display:flex;gap:12px;align-items:center;cursor:pointer;padding:14px}
+.req .ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:none}
+.req .m{flex:1;min-width:0}.req .m b{display:block;font-size:15px}.req .m small{color:var(--mute);font-size:13px}
+.hol{display:flex;gap:12px;align-items:center;padding:12px 14px}
+.hol .d{width:46px;text-align:center;border-radius:12px;background:var(--brand-l);color:var(--brand-d);padding:6px 0;flex:none}
+.hol .d b{display:block;font-size:18px;line-height:1}.hol .d small{font-size:11px;text-transform:uppercase;font-weight:600}
+.hol .m b{display:block;font-size:14px}.hol .m small{color:var(--mute);font-size:12px}
+/* nav */
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 6px calc(10px + env(safe-area-inset-bottom));z-index:5}
+#view{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.qa,.type,.fl,.menu,.req{min-height:44px}
+nav button{flex:1;border:none;background:none;color:var(--mute);font:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+nav button.on{color:var(--brand)}
+nav button.apply .fab{width:50px;height:50px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;margin-top:-26px;box-shadow:0 8px 20px rgba(91,75,219,.45);border:4px solid var(--bg)}
+nav button.apply{color:var(--brand)}
+svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* forms */
+.seg{display:flex;background:var(--line);border-radius:14px;padding:4px;margin-bottom:16px}
+.seg button{flex:1;border:none;background:none;padding:10px;border-radius:11px;font:inherit;font-weight:600;color:var(--mute);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+label.f{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+.in{width:100%;padding:13px 14px;border-radius:13px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px}
+.in:focus{outline:none;border-color:var(--brand)}
+textarea.in{resize:none;height:90px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type{border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;font:inherit;color:var(--ink)}
+.type b{display:block;font-size:13px}.type small{color:var(--mute);font-size:11px}
+.type.on{border-color:var(--brand);background:var(--brand-l)}
+.toggle{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:12px 14px;border:1.5px solid var(--line);border-radius:13px;background:var(--card)}
+.sw{width:46px;height:26px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;border:none;transition:.2s}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.sw.on{background:var(--grad)}.sw.on:after{left:23px}
+.mgr{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:13px;background:var(--brand-l);margin-top:14px;font-size:13px}
+.mgr .avatar{width:34px;height:34px;font-size:12px}
+.sum{margin-top:14px;padding:14px;border-radius:13px;border:1.5px dashed var(--line);font-size:14px}
+.sum b{font-size:18px}
+.err{background:var(--red-l);color:var(--red);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px}
+.btn{width:100%;padding:15px;border-radius:15px;border:none;background:var(--grad);box-shadow:0 8px 18px rgba(91,75,219,.3);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:18px}
+.btn:active{filter:brightness(.92)}
+.btn.ghost{background:none;box-shadow:none;color:var(--red);border:1.5px solid var(--line)}
+/* chips filter */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.filters::-webkit-scrollbar{display:none}
+.fl{border:1.5px solid var(--line);background:var(--card);padding:8px 14px;border-radius:99px;font:inherit;font-size:13px;font-weight:600;color:var(--mute);cursor:pointer;white-space:nowrap}
+.fl.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* calendar */
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.calhead b{font-family:Fraunces,serif;font-size:19px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.grid .dow{font-size:11px;color:var(--mute);font-weight:600;padding:4px 0}
+.cell{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;font-size:14px;position:relative;cursor:pointer;border:none;background:none;color:var(--ink);font-family:inherit}
+.cell.we{color:var(--mute)}
+.cell.today{outline:2px solid var(--brand);outline-offset:-2px;font-weight:700}
+.cell.hol{background:var(--brand-l);color:var(--brand-d);font-weight:700}
+.cell.sel{background:var(--brand);color:#fff}
+.cell i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
+.legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
+.stat b{display:block;font-size:20px;font-family:Fraunces,serif}.stat small{font-size:11px;color:var(--mute)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end;animation:fade .2s}
+.sheet{background:var(--bg);width:100%;border-radius:26px 26px 0 0;padding:10px 18px 28px;max-height:88%;overflow-y:auto;animation:up .25s}
+.sheet .grab{width:40px;height:4px;background:var(--line);border-radius:9px;margin:0 auto 14px}
+@keyframes up{from{transform:translateY(100%)}}@keyframes fade{from{opacity:0}}
+.tl{position:relative;padding-left:26px;margin-top:6px}
+.tl:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tl div{position:relative;margin-bottom:16px;font-size:14px}
+.tl div:before{content:"";position:absolute;left:-23px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--c,var(--line));border:2px solid var(--bg)}
+.tl small{display:block;color:var(--mute);font-size:12px}
+.kv{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border:none}.kv span:first-child{color:var(--mute)}
+.toast{position:fixed;top:18px;left:16px;right:16px;background:var(--ink);color:var(--bg);padding:13px 16px;border-radius:14px;font-size:14px;font-weight:500;z-index:20;animation:fade .2s}
+.empty{text-align:center;color:var(--mute);padding:40px 10px;font-size:14px}
+.prof{text-align:center;padding:10px 0 4px}
+.prof .avatar{width:84px;height:84px;font-size:28px;margin:0 auto 10px}
+.prof h1{font-size:24px}.prof p{color:var(--mute);font-size:14px}
+.menu{display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:15px;border-bottom:1px solid var(--line);cursor:pointer}
+.menu:last-child{border:none}.menu span{flex:1}
+
+/* tablet / desktop */
+@media(min-width:700px){
+  #view{padding:0 32px 60px}
+  .list2{display:grid;grid-template-columns:1fr 1fr;column-gap:14px}
+  .sheet{max-width:520px;margin:0 auto}
+}
+@media(min-width:900px){
+  .phone{flex-direction:row}
+  #view{padding:0 44px 60px}
+  header.top{padding-top:32px}
+  header.top .t h1{font-size:30px}
+  nav{position:static;flex-direction:column;justify-content:flex-start;width:230px;flex:none;border-top:none;border-right:1px solid var(--line);padding:26px 14px;gap:4px;order:-1}
+  nav button{flex:none;flex-direction:row;gap:12px;font-size:15px;padding:12px 14px;border-radius:13px;justify-content:flex-start}
+  nav button:hover{background:var(--brand-l)}
+  nav button.on{background:var(--brand-l)}
+  nav button.apply{order:-1;background:var(--grad);color:#fff;margin-bottom:14px;justify-content:center}
+  nav button.apply:hover{filter:brightness(.95)}
+  nav button.apply .fab{width:auto;height:auto;margin:0;background:none;box-shadow:none;border:none}
+  .brand{display:flex;align-items:center;gap:10px;font-family:Fraunces,serif;font-size:20px;padding:0 14px 22px;order:-2}
+  .brand i{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
+  .sidelink{display:flex;margin-top:auto}
+  .cols{display:grid;grid-template-columns:3fr 2fr;gap:28px;align-items:start}
+  .hero .big{font-size:48px}
+  .scrim{align-items:center}.sheet{border-radius:26px;padding-top:22px}.sheet .grab{display:none}
+  .toast{left:auto;right:24px;top:24px;width:360px}
+}
+
+/* very small phones */
+@media(max-width:379px){
+  #view{padding-left:12px;padding-right:12px}
+  header.top .t h1{font-size:21px}
+  .hero .big{font-size:34px}.hero .row{flex-direction:column}
+  .balances{gap:6px}.bal{padding:12px 4px}.ring{width:54px;height:54px}.ring span{width:42px;height:42px;font-size:14px}
+  .types{gap:6px}.type{padding:10px 4px}
+  .two{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .cell{font-size:12px;border-radius:8px}.grid{gap:2px}
+  .req{gap:10px;padding:12px}.req .ic{width:38px;height:38px}
+  nav button{font-size:10px}
+  .card{padding:14px}
+}
+/* phones in landscape / short screens */
+@media(max-height:480px) and (max-width:899px){
+  nav{padding-top:4px;padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+  nav button{flex-direction:row;justify-content:center;gap:6px}
+  nav button.apply .fab{width:38px;height:38px;margin-top:-14px}
+  #view{padding-bottom:70px}.cell{aspect-ratio:auto;height:34px}
+  .sheet{max-height:94%}
+}
+/* large screens */
+@media(min-width:1280px){
+  nav{width:260px}#view{padding:0 64px 60px}#view>.page{max-width:1180px}
+}
+@media(min-width:1800px){html{font-size:18px}#view>.page{max-width:1360px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* sign-in gate + notices */
+.gate{min-height:100%;display:grid;place-items:center;padding:20px}
+.gate .card{width:100%;max-width:400px;padding:24px}
+.gate .logo{width:48px;height:48px;border-radius:14px;background:var(--grad);color:#fff;display:grid;place-items:center;font-family:Fraunces,serif;font-size:22px;margin-bottom:14px}
+.warnbox{background:var(--amber-l);color:var(--amber);padding:12px 14px;border-radius:14px;font-size:13px;font-weight:500;margin-bottom:12px}
+.btn:disabled{cursor:not-allowed}
+
+/* switch between views */
+nav a.vlink{display:none}
+@media(min-width:900px){nav a.vlink{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--mute);padding:12px 14px;border-radius:13px;text-decoration:none}nav a.vlink:hover{background:var(--brand-l)}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div id="view"></div>
+  <nav id="nav"></nav>
+  <div id="overlay"></div>
+</div>
+
+<script>
+/* =============== API client (talks to the Cloudflare Worker + D1) =============== */
+const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+async function api(method,url,body){
+  let r;
+  try{r=await fetch(url,{method,credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})}
+  catch(e){const err=new Error('Can’t reach the server. Check your connection and try again.');err.status=0;throw err}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login')goLogin()},0)}
+    throw err;
+  }
+  return j;
+}
+async function loadState(){
+  try{
+    const s=await api('GET','/api/state');
+    ME=s.me;
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
+    return true;
+  }catch(e){
+    if(e.status===401){ME=null;DB=blankDB();try{NEEDS_SETUP=(await api('GET','/api/auth/status')).needsSetup}catch(_){}return false}
+    throw e;
+  }
+}
+function usedDays(empId,type){const y=todayISO().slice(0,4);return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Approved'&&r.from.startsWith(y)).reduce((a,r)=>a+r.days,0)}
+function pendingDays(empId,type){return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Pending').reduce((a,r)=>a+r.days,0)}
+
+/* ---- sign in / first-time setup ---- */
+function loginGate(title,sub,note){
+  if(BOOTING)return `<div class="gate"><div class="card" style="text-align:center;color:var(--mute)">Loading…</div></div>`;
+  const logo='<div class="logo">L</div>';
+  if(NEEDS_SETUP){
+    return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Set up LeaveDesk</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:6px">Create the first administrator account. You can add everyone else afterwards.</p>
+      <label class="f">Your name</label><input class="in" id="s_name" autocomplete="name">
+      <label class="f">Email</label><input class="in" type="email" id="s_email" autocomplete="username">
+      <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
+      <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
+  }
+  return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>
+    ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
+    <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
+    <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button></div></div>`;
+}
+function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
+async function submitLogin(){
+  const email=document.getElementById('g_email').value.trim(),pw=document.getElementById('g_pw').value;
+  if(!email||!pw)return gateError('Enter your email and password.');
+  const b=document.getElementById('g_btn');b.disabled=true;
+  try{await api('POST','/api/auth/login',{email,password:pw});await loadState();afterAuth()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+async function submitSetup(){
+  const name=document.getElementById('s_name').value.trim(),email=document.getElementById('s_email').value.trim(),pw=document.getElementById('s_pw').value;
+  if(!name||!email||pw.length<8)return gateError('Enter your name, a valid email and a password of at least 8 characters.');
+  try{await api('POST','/api/auth/setup',{name,email,password:pw});NEEDS_SETUP=false;await loadState();afterAuth()}
+  catch(e){gateError(e.message)}
+}
+function afterAuth(){onAuthed()}
+async function doLogout(){try{await api('POST','/api/auth/logout',{})}catch(e){}ME=null;DB=blankDB();location.replace('/')}
+function deniedGate(title,msg){
+  return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:24px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:8px">${msg}</p>
+    <p style="font-size:13px;margin-top:10px">Signed in as <b>${String(ME&&ME.name||'').replace(/</g,'&lt;')}</b>.</p>
+    <button class="btn" onclick="doLogout()">Sign out</button></div></div>`;
+}
+/* keep data fresh without a manual reload */
+function softRefresh(){
+  if(!ME||document.hidden)return;
+  loadState().then(()=>{
+    if(document.querySelector('#overlay .sheet'))return;
+    if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName))return;
+    render();
+  }).catch(()=>{});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefresh()});
+setInterval(softRefresh,60000);
+/* ---- one login page, role decides the app ---- */
+const HOME={admin:'/admin',manager:'/manager',employee:'/employee'};
+const ACCESS={admin:['admin'],manager:['manager','admin'],employee:['employee','manager','admin']};
+const APP_PATHS=['/admin','/manager','/employee'];
+function appKey(path){return path.split('#')[0].split('?')[0].replace(/\.html$/,'').replace(/^\/+/,'')}
+function goLogin(){location.replace('/?next='+encodeURIComponent(location.pathname+location.hash))}
+function nextTarget(){
+  const n=new URLSearchParams(location.search).get('next')||'';
+  if(!n.startsWith('/')||n.startsWith('//'))return null;
+  const k=appKey(n);
+  if(!ACCESS[k]||!ME||!ACCESS[k].includes(ME.role))return null;
+  return '/'+k+(n.includes('#')?n.slice(n.indexOf('#')):'');
+}
+function viewLinks(){
+  if(!ME)return [];
+  const all=[['admin','Admin','/admin'],['manager','Approvals','/manager'],['employee','My leave','/employee']];
+  return all.filter(([k])=>k!==PAGE&&ACCESS[k].includes(ME.role));
+}
+const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
+function onAuthed(){location.replace(nextTarget()||HOME[ME.role])}
+async function boot(){
+  try{await loadState()}catch(e){}
+  BOOTING=false;
+  if(PAGE==='login'){
+    if(ME){onAuthed();return}
+    render();return;
+  }
+  if(!ME){goLogin();return}
+  if(!ACCESS[PAGE].includes(ME.role)){location.replace(HOME[ME.role]);return}
+  render();
+}
+
+
+/* =============== employee app =============== */
+const LT={
+  annual:{label:'Annual', total:LEAVE_TYPES.annual.total, color:'var(--brand)', bg:'var(--brand-l)'},
+  sick:  {label:'Sick',   total:LEAVE_TYPES.sick.total,   color:'var(--red)',   bg:'var(--red-l)'},
+  casual:{label:'Casual', total:LEAVE_TYPES.casual.total, color:'var(--blue)',  bg:'var(--blue-l)'},
+};
+const TODAY=todayISO();
+const PAGE='employee';
+const $=s=>document.querySelector(s);
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const P=s=>new Date(s+'T00:00');
+const fmt=(s,o={day:'numeric',month:'short'})=>P(s.slice(0,10)).toLocaleDateString('en-GB',o);
+const range=r=>r.from===r.to?fmt(r.from):`${fmt(r.from)} – ${fmt(r.to)}`;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ini=n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const holMap=()=>Object.fromEntries(DB.holidays.map(h=>[h.d,h.n]));
+function workdays(from,to,half){
+  const hm=holMap();let n=0;
+  for(let d=P(from);d<=P(to);d.setDate(d.getDate()+1)){if(d.getDay()===0||d.getDay()===6||hm[iso(d)])continue;n++}
+  return half?n*0.5:n;
+}
+
+/* ---------- session ---------- */
+let meId=null;
+const me=()=>ME;
+const manager=()=>ME&&ME.mgr?DB.emps.find(e=>e.id===ME.mgr&&e.active)||null:null;
+const myReqs=()=>DB.reqs.filter(r=>r.emp===meId).sort((a,b)=>b.created.localeCompare(a.created));
+const used=t=>usedDays(meId,t), pending=t=>pendingDays(meId,t);
+
+/* ---------- state / routing ---------- */
+let tab='home', calMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1), selDay=null, filter='All';
+let attMonth=new Date(calMonth);
+let frm={kind:'leave',type:'annual',from:TODAY,to:TODAY,half:false,reason:'',err:''};
+const ICON={
+ home:'<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',
+ list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ cal:'<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ palm:'<path d="M12 22V10M12 10C9 6 5 6 3 8c3 0 5 1 9 2zM12 10c3-4 7-4 9-2-3 0-5 1-9 2zM12 10c0-3 1-6 4-7-1 3-2 5-4 7z"/>',
+ left:'<path d="M15 18l-6-6 6-6"/>',right:'<path d="M9 18l6-6-6-6"/>',
+ bell:'<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+ lock:'<rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/>',
+ out:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
+ help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 115 .5c0 1.5-2.500 2-2.500 3.500M12 17h.01"/>',
+ home2:'<path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>',
+};
+const ic=n=>`<svg viewBox="0 0 24 24">${ICON[n]}</svg>`;
+function go(t){tab=t;selDay=null;render();$('#view').scrollTop=0}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;$('.phone').appendChild(t);setTimeout(()=>t.remove(),2800)}
+function closeSheet(){$('#overlay').innerHTML=''}
+function sheet(html){$('#overlay').innerHTML=`<div class="scrim" onclick="if(event.target===this)closeSheet()"><div class="sheet"><div class="grab"></div>${html}</div></div>`}
+
+/* ---------- sign in ---------- */
+function vGate(){return loginGate('Welcome','Sign in to apply for leave and track your requests.','')}
+function onAuthed(){tab='home';render()}
+/* ---------- views ---------- */
+function reqRow(r){
+  const lt=r.kind==='leave'?LT[r.type]:null;
+  const title=r.kind==='leave'?`${lt.label} leave`:'Work from home';
+  const bg=lt?lt.bg:'var(--plum-l)', col=lt?lt.color:'var(--plum)';
+  return `<div class="card req" onclick="openReq('${r.no}')">
+    <div class="ic" style="background:${bg};color:${col}">${ic(r.kind==='leave'?'palm':'home2')}</div>
+    <div class="m"><b>${title}</b><small>${range(r)} · ${r.days} day${r.days===1?'':'s'}</small></div>
+    <span class="pill ${r.status}">${r.status}</span></div>`;
+}
+function holRow(h){const d=P(h.d);return `<div class="card hol"><div class="d"><b>${d.getDate()}</b><small>${d.toLocaleDateString('en-GB',{month:'short'})}</small></div>
+  <div class="m"><b>${esc(h.n)}</b><small>${d.toLocaleDateString('en-GB',{weekday:'long'})}</small></div></div>`}
+const sortedHol=()=>[...DB.holidays].sort((a,b)=>a.d.localeCompare(b.d));
+
+function vHome(){
+  const e=me(), rs=myReqs();
+  const upcoming=sortedHol().filter(h=>h.d>=TODAY).slice(0,2);
+  const pend=rs.filter(r=>r.status==='Pending');
+  const left=Object.keys(LT).reduce((a,k)=>a+LT[k].total-used(k),0);
+  const nextOff=rs.filter(r=>['Approved','Pending'].includes(r.status)&&r.to>=TODAY).sort((a,b)=>a.from.localeCompare(b.from))[0];
+  const dateStr=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  return `<header class="top"><div class="t"><small>${dateStr}</small><h1>Hi, ${esc(e.name.split(' ')[0])} 👋</h1></div>
+    <button class="avatar" onclick="go('profile')">${ini(e.name)}</button></header>
+   ${manager()?'':`<div class="warnbox">You don’t have a reporting manager yet, so you can’t submit requests. Please ask HR.</div>`}
+   <div class="card hero"><small>Leave available</small><div class="big">${left} days</div>
+     <div class="row"><div class="chip"><small>Pending</small><b>${pend.length} request${pend.length===1?'':'s'}</b></div>
+     <div class="chip"><small>Next time off</small><b>${nextOff?fmt(nextOff.from):'—'}</b></div></div></div>
+   <div class="sec" style="margin-top:6px"><h2>Balances</h2></div>
+   <div class="balances">${Object.entries(LT).map(([k,t])=>{const rem=t.total-used(k);return `<div class="card bal"><div class="ring" style="--c:${t.color};--p:${rem/t.total*100}"><span>${rem}</span></div><b style="font-size:13px">${t.label}</b><br><small>of ${t.total}${pending(k)?` · ${pending(k)} pending`:''}</small></div>`}).join('')}</div>
+   <div class="quick">
+     <button class="qa" onclick="frm.kind='leave';go('apply')"><div class="ic" style="background:var(--brand-l);color:var(--brand)">${ic('palm')}</div><b>Apply leave</b><small>Annual, sick, casual</small></button>
+     <button class="qa" onclick="frm.kind='wfh';go('apply')"><div class="ic" style="background:var(--plum-l);color:var(--plum)">${ic('home2')}</div><b>Request WFH</b><small>Work from home</small></button></div>
+   <div class="cols"><div><div class="sec"><h2>Recent requests</h2><a onclick="go('requests')">See all</a></div>
+   ${rs.length?rs.slice(0,4).map(reqRow).join(''):'<div class="card" style="text-align:center;color:var(--mute)">No requests yet. Tap Apply to create one.</div>'}</div>
+   <div><div class="sec"><h2>Upcoming holidays</h2><a onclick="go('calendar')">Calendar</a></div>
+   ${upcoming.length?upcoming.map(holRow).join(''):'<div class="card" style="text-align:center;color:var(--mute)">No upcoming holidays.</div>'}</div></div>`;
+}
+
+function vApply(){
+  const isL=frm.kind==='leave', mg=manager();
+  const days=frm.from&&frm.to&&frm.to>=frm.from?workdays(frm.from,frm.to,frm.half):0;
+  const t=LT[frm.type]; const rem=t.total-used(frm.type)-pending(frm.type);
+  return `<header class="top"><div class="t"><small>New request</small><h1>Apply</h1></div></header>
+  <div class="seg"><button class="${isL?'on':''}" onclick="frm.kind='leave';frm.err='';render()">Leave</button><button class="${!isL?'on':''}" onclick="frm.kind='wfh';frm.err='';frm.to=frm.from;render()">Work from home</button></div>
+  ${isL?`<label class="f" style="margin-top:0">Leave type</label>
+    <div class="types">${Object.entries(LT).map(([k,v])=>`<button class="type ${frm.type===k?'on':''}" onclick="frm.type='${k}';render()"><b>${v.label}</b><small>${v.total-used(k)-pending(k)} left</small></button>`).join('')}</div>`:''}
+  <div class="${isL?'two':''}">
+    <div><label class="f">${isL?'From':'Date'}</label><input class="in" type="date" id="from" value="${frm.from}" min="${TODAY}" onchange="frm.from=this.value;if(frm.to<frm.from||!${isL})frm.to=frm.from;render()"></div>
+    ${isL?`<div><label class="f">To</label><input class="in" type="date" id="to" value="${frm.to}" min="${frm.from}" onchange="frm.to=this.value;render()"></div>`:''}
+  </div>
+  ${isL?`<div class="toggle"><div><b style="font-size:14px">Half day</b><br><small style="color:var(--mute)">Counts as 0.5 day per working day</small></div><button class="sw ${frm.half?'on':''}" onclick="frm.half=!frm.half;render()"></button></div>`:''}
+  ${isL?`<div class="sum">Working days: <b>${days}</b><br><small style="color:var(--mute)">Weekends and company holidays are not counted. Balance after approval: ${Math.max(rem-days,0)} ${t.label.toLowerCase()} day(s).</small></div>`:''}
+  <label class="f">Reason</label>
+  <textarea class="in" id="reason" placeholder="${isL?'Briefly describe the reason':'Why do you need to work from home?'}" oninput="frm.reason=this.value">${esc(frm.reason)}</textarea>
+  ${mg?`<div class="mgr"><div class="avatar">${ini(mg.name)}</div><div>Goes to <b>${esc(mg.name)}</b><br><span style="color:var(--mute)">${esc(mg.desig||'Manager')} · your reporting manager</span></div></div>`
+      :`<div class="err">No reporting manager is assigned to you. Ask HR to set one before applying.</div>`}
+  ${frm.err?`<div class="err">${esc(frm.err)}</div>`:''}
+  <button class="btn" ${mg?'':'disabled style="opacity:.5"'} onclick="submitReq()">Submit ${isL?'leave':'WFH'} request</button>
+  <p style="text-align:center;color:var(--mute);font-size:12px;margin-top:10px">Your manager is notified instantly. Balance is deducted only after approval.</p>`;
+}
+async function submitReq(){
+  const r=frm, isL=r.kind==='leave', mg=manager();
+  if(!mg) return fail('No reporting manager is assigned to you.');
+  if(!r.from||(isL&&!r.to)) return fail('Please select the date(s).');
+  const to=isL?r.to:r.from;
+  if(to<r.from) return fail('End date cannot be before start date.');
+  if(!r.reason.trim()) return fail('Please add a reason.');
+  try{
+    const res=await api('POST','/api/requests',{kind:r.kind,type:isL?r.type:null,from:r.from,to,half:isL&&r.half,reason:r.reason.trim()});
+    await loadState();
+    frm={kind:r.kind,type:'annual',from:TODAY,to:TODAY,half:false,reason:'',err:''};
+    filter='All'; go('requests'); toast(`Request ${res.no} sent to ${mg.name}`);
+  }catch(err){fail(err.message)}
+}
+function fail(m){frm.err=m;render();$('#view').scrollTo({top:9999,behavior:'smooth'})}
+
+function vRequests(){
+  const rs=myReqs(), fs=['All','Pending','Approved','Rejected'];
+  const list=rs.filter(r=>filter==='All'||r.status===filter);
+  return `<header class="top"><div class="t"><small>${rs.length} total</small><h1>My requests</h1></div></header>
+  <div class="filters">${fs.map(f=>`<button class="fl ${filter===f?'on':''}" onclick="filter='${f}';render()">${f}${f!=='All'?` · ${rs.filter(r=>r.status===f).length}`:''}</button>`).join('')}</div>
+  ${list.length?'<div class="list2">'+list.map(reqRow).join('')+'</div>':'<div class="empty">No requests here yet.</div>'}`;
+}
+function openReq(no){
+  const r=DB.reqs.find(x=>x.no===no&&x.emp===meId); if(!r)return;
+  const lt=r.kind==='leave'?LT[r.type]:null, ap=DB.emps.find(e=>e.id===r.appr);
+  const colors={Submitted:'var(--amber)',Approved:'var(--green)',Rejected:'var(--red)',Cancelled:'var(--mute)'};
+  sheet(`<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-size:22px">${lt?lt.label+' leave':'Work from home'}</h2><span class="pill ${r.status}">${r.status}</span></div>
+   <small style="color:var(--mute)">${esc(r.no)}</small>
+   <div class="card" style="margin-top:14px;padding:6px 16px">
+     <div class="kv"><span>Dates</span><b>${range(r)}</b></div>
+     <div class="kv"><span>Duration</span><b>${r.days} day${r.days===1?'':'s'}${r.half?' (half day)':''}</b></div>
+     <div class="kv"><span>Approver</span><b>${esc(ap?ap.name:'—')}</b></div>
+     <div class="kv"><span>Reason</span><b style="max-width:60%;text-align:right">${esc(r.reason)}</b></div></div>
+   ${r.rej?`<div class="err" style="margin-top:0"><b>Reason for rejection</b><br>${esc(r.rej)}</div>`:''}
+   <div class="sec" style="margin:18px 2px 6px"><h2 style="font-size:16px">History</h2></div>
+   <div class="tl">${r.hist.map(([a,t])=>`<div style="--c:${colors[a.split(' ')[0]]||'var(--mute)'}">${esc(a)}<small>${esc(t)}</small></div>`).join('')}
+     ${r.status==='Pending'?`<div style="--c:var(--line)"><span style="color:var(--mute)">Waiting for ${esc(ap?ap.name:'your manager')}…</span></div>`:''}</div>
+   ${r.status==='Pending'?`<button class="btn ghost" onclick="cancelReq('${r.no}')">Cancel request</button>`:''}
+   ${r.status==='Rejected'?`<button class="btn" onclick="closeSheet();frm.kind='${r.kind}';go('apply')">Apply again</button>`:''}`);
+}
+async function cancelReq(no){
+  try{await api('POST',`/api/requests/${encodeURIComponent(no)}/cancel`,{});await loadState();closeSheet();render();toast('Request cancelled')}
+  catch(err){toast(err.message);try{await loadState()}catch(_){}closeSheet();render()}
+}
+
+function monthGrid(m,cellFn){
+  const first=new Date(m.getFullYear(),m.getMonth(),1), n=new Date(m.getFullYear(),m.getMonth()+1,0).getDate();
+  const off=(first.getDay()+6)%7; let h=['M','T','W','T','F','S','S'].map(d=>`<div class="dow">${d}</div>`).join('');
+  h+='<div></div>'.repeat(off);
+  for(let i=1;i<=n;i++) h+=cellFn(iso(new Date(m.getFullYear(),m.getMonth(),i)),i);
+  return `<div class="grid">${h}</div>`;
+}
+const mTitle=m=>m.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+function vCalendar(){
+  const hm=holMap(), rs=myReqs();
+  const grid=monthGrid(calMonth,(ds,i)=>{
+    const dow=P(ds).getDay(), we=dow===0||dow===6, h=hm[ds];
+    const mine=rs.filter(r=>['Approved','Pending'].includes(r.status)&&ds>=r.from&&ds<=r.to&&!we);
+    const dot=mine[0]?`<i style="background:${mine[0].kind==='wfh'?'var(--plum)':mine[0].status==='Pending'?'var(--amber)':'var(--green)'}"></i>`:'';
+    return `<button class="cell ${we?'we':''} ${h?'hol':''} ${ds===TODAY?'today':''} ${selDay===ds?'sel':''}" onclick="selDay='${ds}';render()">${i}${dot}</button>`});
+  const inMonth=sortedHol().filter(h=>h.d.startsWith(iso(calMonth).slice(0,7)));
+  let detail='';
+  if(selDay){const mine=rs.filter(r=>['Approved','Pending'].includes(r.status)&&selDay>=r.from&&selDay<=r.to);
+    detail=`<div class="card"><b>${fmt(selDay,{weekday:'long',day:'numeric',month:'long'})}</b><br><small style="color:var(--mute)">${esc(hm[selDay]||(mine.length?'':'No holiday or request'))}</small>${mine.map(r=>`<div style="margin-top:8px;cursor:pointer" onclick="openReq('${r.no}')"><span class="pill ${r.status}">${r.status}</span> ${r.kind==='wfh'?'Work from home':LT[r.type].label+' leave'}</div>`).join('')}</div>`}
+  return `<header class="top"><div class="t"><small>Company calendar</small><h1>Holidays</h1></div></header>
+  <div class="cols"><div><div class="card"><div class="calhead"><button class="iconbtn" onclick="calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1);selDay=null;render()">${ic('left')}</button><b>${mTitle(calMonth)}</b><button class="iconbtn" onclick="calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1);selDay=null;render()">${ic('right')}</button></div>
+  ${grid}<div class="legend"><span style="--c:var(--brand)">Holiday</span><span style="--c:var(--green)">Leave</span><span style="--c:var(--amber)">Pending</span><span style="--c:var(--plum)">WFH</span></div></div>
+  ${detail}</div><div>
+  <div class="sec" style="margin-top:0"><h2>${calMonth.toLocaleDateString('en-GB',{month:'long'})} holidays</h2></div>
+  ${inMonth.length?inMonth.map(holRow).join(''):'<div class="empty" style="padding:16px">No holidays this month.</div>'}
+  <div class="sec"><h2>All holidays</h2></div>${sortedHol().map(holRow).join('')||'<div class="empty">None added yet.</div>'}</div></div>`;
+}
+
+/* attendance comes only from HR’s CSV imports; leave/WFH approvals stay separate */
+function attFor(ds){
+  const rec=DB.att[meId+'|'+ds]; if(rec)return rec;
+  if(holMap()[ds]&&![0,6].includes(P(ds).getDay()))return {s:'holiday'};
+  return null;
+}
+const ANAMES={present:'Present',late:'Late arrival',wfh:'Work from home',absent:'Absent',leave:'On leave',half_day:'Half day',holiday:'Holiday'};
+const ACOL={present:'var(--green)',late:'var(--amber)',wfh:'var(--plum)',absent:'var(--red)',leave:'var(--blue)',half_day:'var(--blue)',holiday:'var(--brand)'};
+function vAttendance(){
+  const cnt={present:0,late:0,wfh:0,absent:0};
+  const grid=monthGrid(attMonth,(ds,i)=>{
+    const a=attFor(ds), dow=P(ds).getDay(), we=dow===0||dow===6;
+    if(a&&cnt[a.s]!==undefined)cnt[a.s]++;
+    return `<button class="cell ${we?'we':''} ${ds===TODAY?'today':''} ${selDay===ds?'sel':''}" onclick="selDay='${ds}';render()">${i}${a?`<i style="background:${ACOL[a.s]}"></i>`:''}</button>`});
+  let detail='';
+  if(selDay){const a=attFor(selDay);
+    detail=`<div class="card"><b>${fmt(selDay,{weekday:'long',day:'numeric',month:'long'})}</b>
+    ${a?`<div class="kv" style="margin-top:6px"><span>Status</span><b>${ANAMES[a.s]}</b></div>${a.in?`<div class="kv"><span>Check-in</span><b>${esc(a.in)}</b></div><div class="kv"><span>Check-out</span><b>${esc(a.out||'—')}</b></div>`:''}`:`<br><small style="color:var(--mute)">${selDay>TODAY?'Upcoming':'No record uploaded'}</small>`}</div>`}
+  const rows=Object.keys(DB.att).filter(k=>k.startsWith(meId+'|')).map(k=>[k.split('|')[1],DB.att[k]]).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6);
+  return `<header class="top"><div class="t"><small>Uploaded by HR</small><h1>My attendance</h1></div></header>
+  <div class="stats"><div class="stat"><b style="color:var(--green)">${cnt.present}</b><small>Present</small></div><div class="stat"><b style="color:var(--amber)">${cnt.late}</b><small>Late</small></div><div class="stat"><b style="color:var(--plum)">${cnt.wfh}</b><small>WFH</small></div><div class="stat"><b style="color:var(--red)">${cnt.absent}</b><small>Absent</small></div></div>
+  <div class="cols"><div><div class="card"><div class="calhead"><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()-1,1);selDay=null;render()">${ic('left')}</button><b>${mTitle(attMonth)}</b><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()+1,1);selDay=null;render()">${ic('right')}</button></div>
+  ${grid}<div class="legend"><span style="--c:var(--green)">Present</span><span style="--c:var(--amber)">Late</span><span style="--c:var(--plum)">WFH</span><span style="--c:var(--blue)">Leave</span><span style="--c:var(--red)">Absent</span></div></div>
+  ${detail}</div><div>
+  <div class="sec" style="margin-top:0"><h2>Recent records</h2></div>
+  ${rows.length?rows.map(([ds,a])=>`<div class="card hol"><div class="d"><b>${P(ds).getDate()}</b><small>${P(ds).toLocaleDateString('en-GB',{month:'short'})}</small></div><div class="m" style="flex:1"><b>${ANAMES[a.s]||a.s}</b><small>${a.in?esc(a.in)+' → '+esc(a.out||'—'):'No check-in recorded'}</small></div></div>`).join(''):'<div class="card" style="text-align:center;color:var(--mute)">No attendance uploaded for you yet.</div>'}
+  <p style="color:var(--mute);font-size:12px;text-align:center;margin-top:8px">Attendance is uploaded by HR and is separate from leave and WFH approvals. Spot a mistake? Contact HR.</p></div></div>`;
+}
+
+function vProfile(){
+  const e=me(), mg=manager();
+  return `<header class="top"><button class="iconbtn" onclick="go('home')">${ic('left')}</button><div class="t"></div></header>
+  <div class="prof"><div class="avatar">${ini(e.name)}</div><h1>${esc(e.name)}</h1><p>${esc(e.desig||'')}${e.desig?' · ':''}${esc(e.team||'')}</p></div>
+  <div class="card" style="margin-top:18px;padding:6px 16px">
+    <div class="kv"><span>Employee ID</span><b>${esc(e.id)}</b></div><div class="kv"><span>Email</span><b>${esc(e.email)}</b></div>
+    <div class="kv"><span>Team</span><b>${esc(e.team||'—')}</b></div><div class="kv"><span>Reports to</span><b>${mg?esc(mg.name):'Not assigned'}</b></div></div>
+  <div class="card" style="padding:0">
+    ${viewLinks().map(([k,l,h])=>`<a class="menu" href="${h}" style="text-decoration:none;color:inherit">${ic('user')}<span>Switch to ${l}</span>${ic('right')}</a>`).join('')}
+    <div class="menu" onclick="toast('Contact HR to change your details')">${ic('help')}<span>Help & HR contact</span>${ic('right')}</div>
+    <div class="menu" style="color:var(--red)" onclick="doLogout()">${ic('out')}<span>Sign out</span></div></div>`;
+}
+
+const VIEWS={home:vHome,apply:vApply,requests:vRequests,calendar:vCalendar,attendance:vAttendance,profile:vProfile};
+function render(){
+  meId=ME?ME.id:null;
+  const st=$('#view').scrollTop;
+  if(!ME){$('#nav').style.display='none';$('#view').innerHTML=vGate();return}
+  $('#nav').style.display='';
+  $('#view').innerHTML='<div class="page'+(tab==='apply'||tab==='profile'?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
+  $('#view').scrollTop=st;
+  const items=[['home','Home','home'],['requests','Requests','list'],['apply','Apply','plus'],['calendar','Holidays','cal'],['attendance','Attendance','clock']];
+  $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk</div>'+items.map(([k,l,i])=>k==='apply'
+    ?`<button class="apply" onclick="go('apply')"><span class="fab">${ic(i)}</span>${l}</button>`
+    :`<button class="${tab===k?'on':''}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')+viewNav()+`<button class="sidelink ${tab==='profile'?'on':''}" onclick="go('profile')">${ic('user')}Profile</button>`;
+}
+boot();
+
+</script>
+</body>
+</html>

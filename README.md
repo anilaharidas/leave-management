@@ -4,9 +4,14 @@ Responsive leave and WFH management app for employees, managers and admins.
 Runs on Cloudflare Workers with a D1 (SQLite) database.
 
 ## Apps
-- `dist/index.html` – employee
-- `dist/manager.html` – manager approvals
-- `dist/admin.html` – admin (employees, teams, holidays, attendance CSV, reports)
+One sign-in page (`/`). After login the role decides where you land:
+- `dist/index.html` – the only login page (also first-time administrator setup)
+- `dist/employee.html` → `/employee` – apply for leave/WFH, requests, holidays, attendance
+- `dist/manager.html` → `/manager` – approvals, team calendar, reports
+- `dist/admin.html` → `/admin` – employees, teams, holidays, attendance CSV, reports
+
+Managers can switch to "My leave"; admins can switch to Approvals and My leave.
+Opening any app page while signed out sends you to the login page and back afterwards.
 
 ## Backend
 - `src/index.js` – Hono API (`/api/*`): auth, role-scoped state, requests, approvals, admin
@@ -32,3 +37,4 @@ npm run deploy
 - Passwords: PBKDF2-SHA256, 100k iterations. Sessions: random token, only its hash is stored, HttpOnly cookie.
 - Every route is checked server-side by role; approvals check the request's assigned approver.
 - Not yet included: login rate limiting, email delivery of notifications, password reset by email.
+
