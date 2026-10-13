@@ -299,7 +299,8 @@ nav .sidelink+.sidelink{margin-top:0}
 
 <script>
 /* =============== API client (talks to the Cloudflare Worker + D1) =============== */
-const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
+let LEAVE_TYPES={};   // { code: {label, active, quotas:{employee,manager}} } – set from the server
+const quotaFor=(role,type)=>Number(((LEAVE_TYPES[type]||{}).quotas||{})[role==='employee'?'employee':'manager'])||0;
 const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
 let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -319,6 +320,7 @@ async function loadState(){
   try{
     const s=await api('GET','/api/state');
     ME=s.me;
+    LEAVE_TYPES=Object.fromEntries((s.leaveTypes||[]).map(t=>[t.code,{label:t.name,active:t.active,quotas:t.quotas}]));
     DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
     return true;
   }catch(e){
@@ -487,7 +489,7 @@ function showWhatsApp(title,toName,phone,text){
 
 const PAGE='admin';
 const TODAY=todayISO();
-const TL={annual:'Annual',sick:'Sick',casual:'Casual'};
+const TL=new Proxy({},{get:(_,k)=>(LEAVE_TYPES[k]&&LEAVE_TYPES[k].label)||String(k)});
 let teams,emps,holidays,teamLeads,att,imports,audit;
 function bind(){teams=DB.teams;emps=DB.emps;holidays=DB.holidays;teamLeads=DB.teamLeads;att=DB.att;imports=DB.imports;audit=DB.audit}
 bind();
@@ -982,7 +984,7 @@ function exportReport(){
 
 /* =============== more (mobile) + shell =============== */
 function openMore(){
-  const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['reports','Reports','chart'],['activity','Activity log','log']];
+  const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['policy','Leave policy','cal'],['reports','Reports','chart'],['activity','Activity log','log']];
   sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>${it.map(([k,l,i])=>`<div class="more" onclick="go('${k}')">${ic(i)}<span>${l}</span>${ic('right')}</div>`).join('')}
    <div class="more" onclick="go('profile')">${ic('right')}<span>Profile &amp; password</span>${ic('right')}</div>
    <div class="more" style="color:var(--red);border:none" onclick="closeSheet();doLogout()">${ic('out')}<span>Sign out</span></div>`);
@@ -997,7 +999,40 @@ function vProfile(){
   <button class="btn line" onclick="openChangePassword()">Change password</button>
   <button class="btn line" onclick="doLogout()">Sign out</button>`;
 }
-const VIEWS={dashboard:vDashboard,profile:vProfile,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
+/* =============== leave policy =============== */
+function vPolicy(){
+  const types=Object.entries(LEAVE_TYPES);
+  const num=(id,v)=>`<input class="in" type="number" min="0" max="366" step="0.5" id="${id}" value="${v}">`;
+  return `<header class="top"><div class="t"><small>Days per year, per person</small><h1>Leave policy</h1></div></header>
+  <p style="color:var(--mute);font-size:13px;margin:-4px 2px 14px">Choose how many days each leave type gives. Managers and admins use the Managers column. Changes apply straight away: days left = allowance minus approved days this year. Use 0 to hide a type from a group.</p>
+  <div id="lp_err"></div>
+  <div class="list2">${types.map(([k,t])=>`<div class="card">
+    <div class="row" style="margin-bottom:10px"><input class="in" id="lp_${k}_name" value="${esc(t.label)}" style="font-weight:700"><span class="tag ${t.active?'ok':'off'}" style="flex:none">${t.active?'On':'Off'}</span></div>
+    <div class="two"><div><label class="f" style="margin-top:0">Employees</label>${num('lp_'+k+'_employee',t.quotas.employee)}</div>
+      <div><label class="f" style="margin-top:0">Managers</label>${num('lp_'+k+'_manager',t.quotas.manager)}</div></div>
+    <div class="toggle"><div><b style="font-size:14px">Available to apply</b></div><button class="sw ${t.active?'on':''}" id="lp_${k}_active" onclick="this.classList.toggle('on')"></button></div>
+    <button class="btn" style="margin-top:12px" onclick="savePolicy('${k}')">Save ${esc(t.label)}</button></div>`).join('')}</div>
+  <div class="sec"><h2>Add a leave type</h2></div>
+  <div class="card">
+    <label class="f" style="margin-top:0">Name</label><input class="in" id="lp_new_name" placeholder="e.g. Maternity, Study, Comp-off">
+    <div class="two"><div><label class="f">Employees (days)</label>${num('lp_new_employee',0)}</div><div><label class="f">Managers (days)</label>${num('lp_new_manager',0)}</div></div>
+    <button class="btn" onclick="addPolicy()">Add leave type</button></div>`;
+}
+async function savePolicy(k){
+  const g=id=>document.getElementById('lp_'+k+'_'+id);
+  try{
+    await api('PUT','/api/leave-types/'+encodeURIComponent(k),{name:g('name').value.trim(),employee:g('employee').value,manager:g('manager').value,active:g('active').classList.contains('on')});
+    await loadState();render();toast('Leave policy saved');
+  }catch(err){toast(err.message)}
+}
+async function addPolicy(){
+  const g=id=>document.getElementById('lp_new_'+id).value;
+  try{
+    await api('POST','/api/leave-types',{name:g('name').trim(),employee:g('employee'),manager:g('manager')});
+    await loadState();render();toast('Leave type added');
+  }catch(err){toast(err.message)}
+}
+const VIEWS={dashboard:vDashboard,policy:vPolicy,profile:vProfile,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
 function onAuthed(){tab='dashboard';render()}
 function render(){
   if(!ME||ME.role!=='admin'){
@@ -1010,13 +1045,13 @@ function render(){
   bind();
   const st=$('#view').scrollTop;
   const cur=tab==='team'?'teams':tab;
-  $('#view').innerHTML='<div class="page'+(['org','activity','team','profile'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
+  $('#view').innerHTML='<div class="page'+(['org','activity','team','profile','policy'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
   $('#view').scrollTop=st;
   if(tab==='employees')drawEmpList();
-  const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
+  const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['policy','Leave policy','cal','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'
    +items.map(([k,l,i,c])=>`<button class="${cur===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')
-   +`<button class="mOnly ${['teams','org','reports','activity','profile'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
+   +`<button class="mOnly ${['teams','org','policy','reports','activity','profile'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`
    +`<button class="sidelink ${cur==='profile'?'on':''}" onclick="go('profile')">${ic('users')}Profile</button>`
    +`<button class="sidelink" onclick="doLogout()">${ic('out')}Sign out</button>`;
 }

@@ -226,7 +226,8 @@ nav .sidelink+.sidelink{margin-top:0}
 
 <script>
 /* =============== API client (talks to the Cloudflare Worker + D1) =============== */
-const LEAVE_TYPES={annual:{label:'Annual',total:18},sick:{label:'Sick',total:10},casual:{label:'Casual',total:8}};
+let LEAVE_TYPES={};   // { code: {label, active, quotas:{employee,manager}} } – set from the server
+const quotaFor=(role,type)=>Number(((LEAVE_TYPES[type]||{}).quotas||{})[role==='employee'?'employee':'manager'])||0;
 const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
 let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -246,6 +247,7 @@ async function loadState(){
   try{
     const s=await api('GET','/api/state');
     ME=s.me;
+    LEAVE_TYPES=Object.fromEntries((s.leaveTypes||[]).map(t=>[t.code,{label:t.name,active:t.active,quotas:t.quotas}]));
     DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
     return true;
   }catch(e){
@@ -413,11 +415,13 @@ function showWhatsApp(title,toName,phone,text){
 
 
 /* =============== employee app =============== */
-const LT={
-  annual:{label:'Annual', total:LEAVE_TYPES.annual.total, color:'var(--brand)', bg:'var(--brand-l)'},
-  sick:  {label:'Sick',   total:LEAVE_TYPES.sick.total,   color:'var(--red)',   bg:'var(--red-l)'},
-  casual:{label:'Casual', total:LEAVE_TYPES.casual.total, color:'var(--blue)',  bg:'var(--blue-l)'},
-};
+const LT={};
+const PALETTE=[['var(--brand)','var(--brand-l)'],['var(--red)','var(--red-l)'],['var(--blue)','var(--blue-l)'],['var(--green)','var(--green-l)'],['var(--plum)','var(--plum-l)'],['var(--amber)','var(--amber-l)']];
+function rebuildLT(){
+  Object.keys(LT).forEach(k=>delete LT[k]);
+  Object.keys(LEAVE_TYPES).forEach((k,i)=>{const p=PALETTE[i%PALETTE.length];LT[k]={label:LEAVE_TYPES[k].label,active:LEAVE_TYPES[k].active,total:ME?quotaFor(ME.role,k):0,color:p[0],bg:p[1]}});
+}
+const shownTypes=()=>Object.entries(LT).filter(([k,v])=>v.active&&v.total>0);
 const TODAY=todayISO();
 const PAGE='employee';
 const $=s=>document.querySelector(s);
@@ -487,7 +491,7 @@ function vHome(){
   const e=me(), rs=myReqs();
   const upcoming=sortedHol().filter(h=>h.d>=TODAY).slice(0,2);
   const pend=rs.filter(r=>r.status==='Pending');
-  const left=Object.keys(LT).reduce((a,k)=>a+LT[k].total-used(k),0);
+  const left=shownTypes().reduce((a,[k,t])=>a+Math.max(0,t.total-used(k)),0);
   const nextOff=rs.filter(r=>['Approved','Pending'].includes(r.status)&&r.to>=TODAY).sort((a,b)=>a.from.localeCompare(b.from))[0];
   const dateStr=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
   return `<header class="top"><div class="t"><small>${dateStr}</small><h1>Hi, ${esc(e.name.split(' ')[0])} 👋</h1></div>
@@ -497,7 +501,7 @@ function vHome(){
      <div class="row"><div class="chip"><small>Pending</small><b>${pend.length} request${pend.length===1?'':'s'}</b></div>
      <div class="chip"><small>Next time off</small><b>${nextOff?fmt(nextOff.from):'—'}</b></div></div></div>
    <div class="sec" style="margin-top:6px"><h2>Balances</h2></div>
-   <div class="balances">${Object.entries(LT).map(([k,t])=>{const rem=t.total-used(k);return `<div class="card bal"><div class="ring" style="--c:${t.color};--p:${rem/t.total*100}"><span>${rem}</span></div><b style="font-size:13px">${t.label}</b><br><small>of ${t.total}${pending(k)?` · ${pending(k)} pending`:''}</small></div>`}).join('')}</div>
+   <div class="balances">${shownTypes().map(([k,t])=>{const rem=Math.max(0,t.total-used(k));return `<div class="card bal"><div class="ring" style="--c:${t.color};--p:${rem/t.total*100}"><span>${rem}</span></div><b style="font-size:13px">${t.label}</b><br><small>of ${t.total}${pending(k)?` · ${pending(k)} pending`:''}</small></div>`}).join('')}</div>
    <div class="quick">
      <button class="qa" onclick="frm.kind='leave';go('apply')"><div class="ic" style="background:var(--brand-l);color:var(--brand)">${ic('palm')}</div><b>Apply leave</b><small>Annual, sick, casual</small></button>
      <button class="qa" onclick="frm.kind='wfh';go('apply')"><div class="ic" style="background:var(--plum-l);color:var(--plum)">${ic('home2')}</div><b>Request WFH</b><small>Work from home</small></button></div>
@@ -510,11 +514,13 @@ function vHome(){
 function vApply(){
   const isL=frm.kind==='leave', mg=manager();
   const days=frm.from&&frm.to&&frm.to>=frm.from?workdays(frm.from,frm.to,frm.half):0;
-  const t=LT[frm.type]; const rem=t.total-used(frm.type)-pending(frm.type);
+  const sh=shownTypes();
+  if(isL&&sh.length&&!sh.some(([k])=>k===frm.type))frm.type=sh[0][0];
+  const t=LT[frm.type]||{label:'',total:0}; const rem=t.total-used(frm.type)-pending(frm.type);
   return `<header class="top"><div class="t"><small>New request</small><h1>Apply</h1></div></header>
   <div class="seg"><button class="${isL?'on':''}" onclick="frm.kind='leave';frm.err='';render()">Leave</button><button class="${!isL?'on':''}" onclick="frm.kind='wfh';frm.err='';frm.to=frm.from;render()">Work from home</button></div>
   ${isL?`<label class="f" style="margin-top:0">Leave type</label>
-    <div class="types">${Object.entries(LT).map(([k,v])=>`<button class="type ${frm.type===k?'on':''}" onclick="frm.type='${k}';render()"><b>${v.label}</b><small>${v.total-used(k)-pending(k)} left</small></button>`).join('')}</div>`:''}
+    <div class="types">${sh.length?sh.map(([k,v])=>`<button class="type ${frm.type===k?'on':''}" onclick="frm.type='${k}';render()"><b>${esc(v.label)}</b><small>${Math.max(0,v.total-used(k)-pending(k))} left</small></button>`).join(''):'<div class="warnbox" style="grid-column:1/-1">No leave types are set up for you yet. Please ask HR.</div>'}</div>`:''}
   <div class="${isL?'two':''}">
     <div><label class="f">${isL?'From':'Date'}</label><input class="in" type="date" id="from" value="${frm.from}" min="${TODAY}" onchange="frm.from=this.value;if(frm.to<frm.from||!${isL})frm.to=frm.from;render()"></div>
     ${isL?`<div><label class="f">To</label><input class="in" type="date" id="to" value="${frm.to}" min="${frm.from}" onchange="frm.to=this.value;render()"></div>`:''}
@@ -657,6 +663,7 @@ function vProfile(){
 const VIEWS={home:vHome,apply:vApply,requests:vRequests,calendar:vCalendar,attendance:vAttendance,profile:vProfile};
 function render(){
   meId=ME?ME.id:null;
+  rebuildLT();
   const st=$('#view').scrollTop;
   if(!ME){$('#nav').style.display='none';$('#view').innerHTML=vGate();return}
   $('#nav').style.display='';

@@ -76,6 +76,12 @@ function descendantsOf(rows, id) {
 function logStmt(db, actorId, action, details) {
   return db.prepare('INSERT INTO audit_log (actor_id, action, details) VALUES (?, ?, ?)').bind(actorId, action, details);
 }
+async function quotaFor(db, role, type) {
+  const r = role === 'employee' ? 'employee' : 'manager';
+  return db.prepare(
+    `SELECT lt.is_active, COALESCE(q.quota, 0) AS quota FROM leave_types lt
+     LEFT JOIN leave_quotas q ON q.leave_type = lt.code AND q.role = ? WHERE lt.code = ?`).bind(r, type).first();
+}
 async function usedAndPending(db, empId, type, year) {
   const r = await db.prepare(
     `SELECT COALESCE(SUM(CASE WHEN status='Approved' AND start_date LIKE ? THEN days END),0) AS used,
@@ -228,7 +234,16 @@ app.get('/api/state', requireUser, async (c) => {
   const rows = await allEmployees(db);
   const meRow = rows.find((r) => r.id === u.id);
   const holidays = (await db.prepare('SELECT date AS d, name AS n FROM holidays ORDER BY date').all()).results;
-  const out = { me: { ...empShape(meRow), mustChange: !!meRow.must_change_password }, teams: [], teamLeads: {}, emps: [], holidays, reqs: [], att: {}, imports: [], audit: [] };
+  const ltRows = (await db.prepare('SELECT code, name, is_active FROM leave_types ORDER BY rowid').all()).results;
+  const qRows = (await db.prepare('SELECT leave_type, role, quota FROM leave_quotas').all()).results;
+  const leaveTypes = ltRows.map((t) => ({
+    code: t.code, name: t.name, active: !!t.is_active,
+    quotas: {
+      employee: (qRows.find((q) => q.leave_type === t.code && q.role === 'employee') || {}).quota || 0,
+      manager: (qRows.find((q) => q.leave_type === t.code && q.role === 'manager') || {}).quota || 0,
+    },
+  }));
+  const out = { me: { ...empShape(meRow), mustChange: !!meRow.must_change_password }, leaveTypes, teams: [], teamLeads: {}, emps: [], holidays, reqs: [], att: {}, imports: [], audit: [] };
 
   const REQ_SQL = `SELECT r.*, e.emp_code AS emp, a.emp_code AS appr FROM requests r
     JOIN employees e ON e.id = r.employee_id JOIN employees a ON a.id = r.approver_id`;
@@ -298,8 +313,9 @@ app.post('/api/requests', requireUser, async (c) => {
   let type = null;
   if (kind === 'leave') {
     type = str(b.type, 20);
-    const lt = await db.prepare('SELECT yearly_quota FROM leave_types WHERE code = ?').bind(type).first();
-    if (!lt) throw bad('Choose a leave type.');
+    const q = await quotaFor(db, u.role, type);
+    if (!q || !q.is_active) throw bad('Choose a leave type.');
+    if (!(q.quota > 0)) throw bad('That leave type is not available to you.');
   }
   const days = workdays(from, to, half, await holidaySet(db));
   if (days === 0) throw bad('Selected dates fall on weekends or holidays. Nothing to apply for.');
@@ -308,9 +324,9 @@ app.post('/api/requests', requireUser, async (c) => {
      AND start_date <= ? AND end_date >= ? LIMIT 1`).bind(u.id, kind, to, from).first();
   if (dup) throw bad(`This overlaps with your ${dup.status.toLowerCase()} request ${dup.request_no}.`);
   if (kind === 'leave') {
-    const lt = await db.prepare('SELECT yearly_quota FROM leave_types WHERE code = ?').bind(type).first();
+    const q = await quotaFor(db, u.role, type);
     const bal = await usedAndPending(db, u.id, type, from.slice(0, 4));
-    const rem = lt.yearly_quota - bal.used - bal.pend;
+    const rem = q.quota - bal.used - bal.pend;
     if (days > rem) throw bad(`Only ${rem} ${type} day(s) available.`);
   }
   const ins = await db.prepare(
@@ -351,10 +367,11 @@ async function decide(c, status, reason) {
   if (r.approver_id !== u.id) throw new HttpError(403, 'You are not the approver for this request.');
   if (r.status !== 'Pending') throw new HttpError(409, `Request is already ${r.status.toLowerCase()}.`);
   if (status === 'Approved' && r.kind === 'leave') {
-    const lt = await db.prepare('SELECT yearly_quota FROM leave_types WHERE code = ?').bind(r.leave_type).first();
+    const who = await db.prepare('SELECT role FROM employees WHERE id = ?').bind(r.employee_id).first();
+    const q = await quotaFor(db, who.role, r.leave_type);
     const bal = await usedAndPending(db, r.employee_id, r.leave_type, r.start_date.slice(0, 4));
     // pending includes this request itself, so compare used + this request against quota
-    if (bal.used + r.days > lt.yearly_quota) throw bad('The employee does not have enough balance for this request.');
+    if (bal.used + r.days > q.quota) throw bad('The employee does not have enough balance for this request.');
   }
   const upd = await db.prepare(
     `UPDATE requests SET status = ?, decision_reason = ?, decided_by = ?, decided_at = ? WHERE id = ? AND status = 'Pending' AND approver_id = ?`
@@ -522,6 +539,52 @@ app.post('/api/teams/lead', ...admin, async (c) => {
     leadId = e.id;
   }
   await db.batch([db.prepare('UPDATE teams SET lead_id = ? WHERE id = ?').bind(leadId, t.id), logStmt(db, u.id, 'Team lead changed', `${b.team}: ${b.lead || 'not set'}`)]);
+  return c.json({ ok: true });
+});
+
+/* ───────── admin: leave policy ───────── */
+function checkDays(v, label) {
+  const n = Number(v);
+  if (v === '' || v === null || v === undefined || !isFinite(n) || n < 0 || n > 366 || Math.round(n * 2) !== n * 2)
+    throw bad(`${label}: enter days between 0 and 366, in steps of 0.5.`);
+  return n;
+}
+app.post('/api/leave-types', ...admin, async (c) => {
+  const db = c.env.DB, u = c.get('user'), b = await c.req.json();
+  const name = str(b.name, 40);
+  if (!name) throw bad('Leave type name is required.');
+  const emp = checkDays(b.employee, 'Employees'), mgr = checkDays(b.manager, 'Managers');
+  const count = await db.prepare('SELECT COUNT(*) AS n FROM leave_types').first();
+  if (count.n >= 20) throw bad('You can have at most 20 leave types.');
+  if (await db.prepare('SELECT 1 FROM leave_types WHERE LOWER(name) = LOWER(?)').bind(name).first()) throw bad('A leave type with this name already exists.');
+  let code = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'leave';
+  for (let i = 2; await db.prepare('SELECT 1 FROM leave_types WHERE code = ?').bind(code).first(); i++) code = code.slice(0, 26) + '_' + i;
+  await db.batch([
+    db.prepare('INSERT INTO leave_types (code, name, yearly_quota, is_active) VALUES (?, ?, ?, 1)').bind(code, name, emp),
+    db.prepare('INSERT INTO leave_quotas (leave_type, role, quota) VALUES (?, ?, ?)').bind(code, 'employee', emp),
+    db.prepare('INSERT INTO leave_quotas (leave_type, role, quota) VALUES (?, ?, ?)').bind(code, 'manager', mgr),
+    logStmt(db, u.id, 'Leave type added', `${name} · employees ${emp}, managers ${mgr} days`),
+  ]);
+  return c.json({ ok: true, code });
+});
+app.put('/api/leave-types/:code', ...admin, async (c) => {
+  const db = c.env.DB, u = c.get('user'), b = await c.req.json();
+  const code = c.req.param('code');
+  const cur = await db.prepare('SELECT name FROM leave_types WHERE code = ?').bind(code).first();
+  if (!cur) throw new HttpError(404, 'Leave type not found.');
+  const name = str(b.name, 40);
+  if (!name) throw bad('Leave type name is required.');
+  const emp = checkDays(b.employee, 'Employees'), mgr = checkDays(b.manager, 'Managers');
+  if (await db.prepare('SELECT 1 FROM leave_types WHERE LOWER(name) = LOWER(?) AND code <> ?').bind(name, code).first()) throw bad('A leave type with this name already exists.');
+  const active = b.active === false ? 0 : 1;
+  await db.batch([
+    db.prepare('UPDATE leave_types SET name = ?, is_active = ? WHERE code = ?').bind(name, active, code),
+    db.prepare(`INSERT INTO leave_quotas (leave_type, role, quota) VALUES (?, 'employee', ?)
+      ON CONFLICT(leave_type, role) DO UPDATE SET quota = excluded.quota`).bind(code, emp),
+    db.prepare(`INSERT INTO leave_quotas (leave_type, role, quota) VALUES (?, 'manager', ?)
+      ON CONFLICT(leave_type, role) DO UPDATE SET quota = excluded.quota`).bind(code, mgr),
+    logStmt(db, u.id, 'Leave policy updated', `${name} · employees ${emp}, managers ${mgr} days${active ? '' : ' · turned off'}`),
+  ]);
   return c.json({ ok: true });
 });
 
