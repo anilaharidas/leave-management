@@ -457,6 +457,7 @@ app.put('/api/employees/:code', ...admin, async (c) => {
     logStmt(db, u.id, 'Employee updated', `${v.name} (${cur.emp_code})`),
   ];
   const pw = String(b.password || '');
+  if (pw && cur.id === u.id) throw bad('To change your own password, use Change password on your Profile.');
   if (pw) {
     if (pw.length < 8) throw bad('Password must be at least 8 characters.');
     stmts.push(db.prepare('UPDATE employees SET password_hash = ?, must_change_password = 1 WHERE id = ?').bind(await hashPassword(pw), cur.id));
