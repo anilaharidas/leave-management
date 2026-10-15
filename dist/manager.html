@@ -765,6 +765,8 @@ function vProfile(){
   <div class="card" style="margin-top:18px;padding:6px 16px">
    <div class="kv"><span>Employee ID</span><b>${esc(m.id)}</b></div><div class="kv"><span>Email</span><b>${esc(m.email)}</b></div>
    <div class="kv"><span>Team</span><b>${esc(m.team||'—')}</b></div><div class="kv"><span>Direct reports</span><b>${team().length}</b></div><div class="kv"><span>Roles</span><b>${esc((m.roles||[m.role]).join(', '))}</b></div></div>
+  ${viewLinks().length?`<div class="sec" style="margin:18px 2px 8px"><h2 style="font-size:16px">Switch to</h2></div>
+  ${viewLinks().map(([k,l,h])=>`<a class="btn line" style="display:block;text-align:center;text-decoration:none" href="${h}">Switch to ${l}</a>`).join('')}`:''}
   <button class="btn line" onclick="openPhone()">WhatsApp number${m.phone?' · '+esc(m.phone):''}</button>
   <button class="btn line" onclick="openChangePassword()">Change password</button>
   <button class="btn line" onclick="doLogout()">Sign out</button>`;
