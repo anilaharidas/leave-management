@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b4bdb">
+<title>LeaveDesk – Forgot password</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+
+
+:root{
+  --bg:#f4f2fb; --card:#fff; --ink:#1e1b33; --mute:#716d8c; --line:#e7e3f4;
+  --brand:#5b4bdb; --brand-d:#4333b8; --brand-l:#ece9fd; --grad:linear-gradient(135deg,#5b4bdb 0%,#8a4fe0 55%,#d0408f 100%);
+  --amber:#b86e00; --amber-l:#fff0d1; --green:#13875a; --green-l:#dcf5e8;
+  --red:#d6405a; --red-l:#fde6ea; --blue:#0e8fa3; --blue-l:#dff3f6; --plum:#c0398f; --plum-l:#fae4f2;
+  --r:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#12101f;--card:#1c1930;--ink:#f0eefc;--mute:#a09cc0;--line:#2d2947;--brand:#8b7dff;--brand-d:#b4a9ff;--brand-l:#2a2550;
+  --amber-l:#3b2e12;--green-l:#143a2a;--red-l:#3d1b25;--blue-l:#12333a;--plum-l:#3a1b33;--amber:#f0b04a;--green:#52d49a;--red:#ff7b91;--blue:#4fc8dc;--plum:#ee7cc4}
+}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;min-width:0}
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+button,input,textarea{max-width:100%}
+.m b,.hol .m b{overflow-wrap:anywhere}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.phone{width:100%;height:100vh;height:100dvh;background:var(--bg);position:relative;display:flex;flex-direction:column;overflow:hidden}
+#view{flex:1;overflow-y:auto;padding:0 16px 110px;scroll-behavior:smooth}
+#view>.page{max-width:1080px;margin:0 auto}
+.narrow{max-width:620px;margin:0 auto}
+.cols{display:block}
+.list2{display:block}
+.brand,.sidelink{display:none}
+.toast{max-width:420px;margin:0 auto}
+#view::-webkit-scrollbar{display:none}
+h1,h2,.serif{font-family:Fraunces,serif;font-weight:600}
+header.top{display:flex;align-items:center;gap:12px;padding:20px 0 14px}
+header.top .t{flex:1}
+header.top .t small{color:var(--mute);font-size:13px;display:block}
+header.top .t h1{font-size:24px;line-height:1.15}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;border:none;cursor:pointer;flex:none}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:20px 2px 10px}
+.sec h2{font-size:18px}.sec a{font-size:13px;color:var(--brand);font-weight:600;cursor:pointer}
+.hero{background:var(--grad);color:#fff;border:none;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hero small{opacity:.8;font-size:13px}
+.hero .big{font-family:Fraunces,serif;font-size:40px;line-height:1.1;margin:4px 0 12px}
+.hero .row{display:flex;gap:8px}
+.hero .chip{background:rgba(255,255,255,.16);border-radius:12px;padding:8px 12px;font-size:13px;flex:1}
+.hero .chip b{display:block;font-size:17px}
+.balances{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bal{text-align:center;padding:14px 6px}
+.ring{width:62px;height:62px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.ring span{width:48px;height:48px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:700;font-size:16px}
+.bal small{color:var(--mute);font-size:12px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qa{border:1px solid var(--line);background:var(--card);border-radius:var(--r);padding:14px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:8px}
+.qa .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center}
+.qa b{font-size:15px}.qa small{color:var(--mute);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.pill.Pending{background:var(--amber-l);color:var(--amber)}
+.pill.Approved{background:var(--green-l);color:var(--green)}
+.pill.Rejected{background:var(--red-l);color:var(--red)}
+.pill.Cancelled{background:var(--line);color:var(--mute)}
+.req{display:flex;gap:12px;align-items:center;cursor:pointer;padding:14px}
+.req .ic{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:none}
+.req .m{flex:1;min-width:0}.req .m b{display:block;font-size:15px}.req .m small{color:var(--mute);font-size:13px}
+.hol{display:flex;gap:12px;align-items:center;padding:12px 14px}
+.hol .d{width:46px;text-align:center;border-radius:12px;background:var(--brand-l);color:var(--brand-d);padding:6px 0;flex:none}
+.hol .d b{display:block;font-size:18px;line-height:1}.hol .d small{font-size:11px;text-transform:uppercase;font-weight:600}
+.hol .m b{display:block;font-size:14px}.hol .m small{color:var(--mute);font-size:12px}
+/* nav */
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 6px calc(10px + env(safe-area-inset-bottom));z-index:5}
+#view{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.qa,.type,.fl,.menu,.req{min-height:44px}
+nav button{flex:1;border:none;background:none;color:var(--mute);font:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+nav button.on{color:var(--brand)}
+nav button.apply .fab{width:50px;height:50px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;margin-top:-26px;box-shadow:0 8px 20px rgba(91,75,219,.45);border:4px solid var(--bg)}
+nav button.apply{color:var(--brand)}
+svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+/* forms */
+.seg{display:flex;background:var(--line);border-radius:14px;padding:4px;margin-bottom:16px}
+.seg button{flex:1;border:none;background:none;padding:10px;border-radius:11px;font:inherit;font-weight:600;color:var(--mute);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+label.f{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+.in{width:100%;padding:13px 14px;border-radius:13px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px}
+.in:focus{outline:none;border-color:var(--brand)}
+textarea.in{resize:none;height:90px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type{border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:12px 6px;text-align:center;cursor:pointer;font:inherit;color:var(--ink)}
+.type b{display:block;font-size:13px}.type small{color:var(--mute);font-size:11px}
+.type.on{border-color:var(--brand);background:var(--brand-l)}
+.toggle{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:12px 14px;border:1.5px solid var(--line);border-radius:13px;background:var(--card)}
+.sw{width:46px;height:26px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;border:none;transition:.2s}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.sw.on{background:var(--grad)}.sw.on:after{left:23px}
+.mgr{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:13px;background:var(--brand-l);margin-top:14px;font-size:13px}
+.mgr .avatar{width:34px;height:34px;font-size:12px}
+.sum{margin-top:14px;padding:14px;border-radius:13px;border:1.5px dashed var(--line);font-size:14px}
+.sum b{font-size:18px}
+.err{background:var(--red-l);color:var(--red);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px}
+.btn{width:100%;padding:15px;border-radius:15px;border:none;background:var(--grad);box-shadow:0 8px 18px rgba(91,75,219,.3);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:18px}
+.btn:active{filter:brightness(.92)}
+.btn.ghost{background:none;box-shadow:none;color:var(--red);border:1.5px solid var(--line)}
+/* chips filter */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
+.filters::-webkit-scrollbar{display:none}
+.fl{border:1.5px solid var(--line);background:var(--card);padding:8px 14px;border-radius:99px;font:inherit;font-size:13px;font-weight:600;color:var(--mute);cursor:pointer;white-space:nowrap}
+.fl.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* calendar */
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.calhead b{font-family:Fraunces,serif;font-size:19px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.grid .dow{font-size:11px;color:var(--mute);font-weight:600;padding:4px 0}
+.cell{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;font-size:14px;position:relative;cursor:pointer;border:none;background:none;color:var(--ink);font-family:inherit}
+.cell.we{color:var(--mute)}
+.cell.today{outline:2px solid var(--brand);outline-offset:-2px;font-weight:700}
+.cell.hol{background:var(--brand-l);color:var(--brand-d);font-weight:700}
+.cell.sel{background:var(--brand);color:#fff}
+.cell i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
+.legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
+.stat b{display:block;font-size:20px;font-family:Fraunces,serif}.stat small{font-size:11px;color:var(--mute)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end;animation:fade .2s}
+.sheet{background:var(--bg);width:100%;border-radius:26px 26px 0 0;padding:10px 18px 28px;max-height:88%;overflow-y:auto;animation:up .25s}
+.sheet .grab{width:40px;height:4px;background:var(--line);border-radius:9px;margin:0 auto 14px}
+@keyframes up{from{transform:translateY(100%)}}@keyframes fade{from{opacity:0}}
+.tl{position:relative;padding-left:26px;margin-top:6px}
+.tl:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tl div{position:relative;margin-bottom:16px;font-size:14px}
+.tl div:before{content:"";position:absolute;left:-23px;top:3px;width:12px;height:12px;border-radius:50%;background:var(--c,var(--line));border:2px solid var(--bg)}
+.tl small{display:block;color:var(--mute);font-size:12px}
+.kv{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border:none}.kv span:first-child{color:var(--mute)}
+.toast{position:fixed;top:18px;left:16px;right:16px;background:var(--ink);color:var(--bg);padding:13px 16px;border-radius:14px;font-size:14px;font-weight:500;z-index:20;animation:fade .2s}
+.empty{text-align:center;color:var(--mute);padding:40px 10px;font-size:14px}
+.prof{text-align:center;padding:10px 0 4px}
+.prof .avatar{width:84px;height:84px;font-size:28px;margin:0 auto 10px}
+.prof h1{font-size:24px}.prof p{color:var(--mute);font-size:14px}
+.menu{display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:15px;border-bottom:1px solid var(--line);cursor:pointer}
+.menu:last-child{border:none}.menu span{flex:1}
+
+/* tablet / desktop */
+@media(min-width:700px){
+  #view{padding:0 32px 60px}
+  .list2{display:grid;grid-template-columns:1fr 1fr;column-gap:14px}
+  .sheet{max-width:520px;margin:0 auto}
+}
+@media(min-width:900px){
+  .phone{flex-direction:row}
+  #view{padding:0 44px 60px}
+  header.top{padding-top:32px}
+  header.top .t h1{font-size:30px}
+  nav{position:static;flex-direction:column;justify-content:flex-start;width:230px;flex:none;border-top:none;border-right:1px solid var(--line);padding:26px 14px;gap:4px;order:-1}
+  nav button{flex:none;flex-direction:row;gap:12px;font-size:15px;padding:12px 14px;border-radius:13px;justify-content:flex-start}
+  nav button:hover{background:var(--brand-l)}
+  nav button.on{background:var(--brand-l)}
+  nav button.apply{order:-1;background:var(--grad);color:#fff;margin-bottom:14px;justify-content:center}
+  nav button.apply:hover{filter:brightness(.95)}
+  nav button.apply .fab{width:auto;height:auto;margin:0;background:none;box-shadow:none;border:none}
+  .brand{display:flex;align-items:center;gap:10px;font-family:Fraunces,serif;font-size:20px;padding:0 14px 22px;order:-2}
+  .brand i{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-style:normal;font-size:16px}
+  .sidelink{display:flex;margin-top:auto}
+  .cols{display:grid;grid-template-columns:3fr 2fr;gap:28px;align-items:start}
+  .hero .big{font-size:48px}
+  .scrim{align-items:center}.sheet{border-radius:26px;padding-top:22px}.sheet .grab{display:none}
+  .toast{left:auto;right:24px;top:24px;width:360px}
+}
+
+/* very small phones */
+@media(max-width:379px){
+  #view{padding-left:12px;padding-right:12px}
+  header.top .t h1{font-size:21px}
+  .hero .big{font-size:34px}.hero .row{flex-direction:column}
+  .balances{gap:6px}.bal{padding:12px 4px}.ring{width:54px;height:54px}.ring span{width:42px;height:42px;font-size:14px}
+  .types{gap:6px}.type{padding:10px 4px}
+  .two{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .cell{font-size:12px;border-radius:8px}.grid{gap:2px}
+  .req{gap:10px;padding:12px}.req .ic{width:38px;height:38px}
+  nav button{font-size:10px}
+  .card{padding:14px}
+}
+/* phones in landscape / short screens */
+@media(max-height:480px) and (max-width:899px){
+  nav{padding-top:4px;padding-bottom:calc(4px + env(safe-area-inset-bottom))}
+  nav button{flex-direction:row;justify-content:center;gap:6px}
+  nav button.apply .fab{width:38px;height:38px;margin-top:-14px}
+  #view{padding-bottom:70px}.cell{aspect-ratio:auto;height:34px}
+  .sheet{max-height:94%}
+}
+/* large screens */
+@media(min-width:1280px){
+  nav{width:260px}#view{padding:0 64px 60px}#view>.page{max-width:1180px}
+}
+@media(min-width:1800px){html{font-size:18px}#view>.page{max-width:1360px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* sign-in gate + notices */
+.gate{min-height:100%;display:grid;place-items:center;padding:20px}
+.gate .card{width:100%;max-width:400px;padding:24px}
+.gate .logo{width:48px;height:48px;border-radius:14px;background:var(--grad);color:#fff;display:grid;place-items:center;font-family:Fraunces,serif;font-size:22px;margin-bottom:14px}
+.warnbox{background:var(--amber-l);color:var(--amber);padding:12px 14px;border-radius:14px;font-size:13px;font-weight:500;margin-bottom:12px}
+.btn:disabled{cursor:not-allowed}
+
+/* switch between views */
+nav a.vlink{display:none}
+@media(min-width:900px){nav a.vlink{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--mute);padding:12px 14px;border-radius:13px;text-decoration:none}nav a.vlink:hover{background:var(--brand-l)}}
+
+
+.fp-box{border-radius:14px;padding:12px 14px;font-size:14px;margin-top:12px;line-height:1.5}
+.fp-box b{display:block;font-size:14px;margin-bottom:2px}
+.fp-who{background:var(--amber-l);color:var(--amber)}
+.fp-admin{background:var(--brand-l);color:var(--brand-d)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div id="view"></div>
+  <nav id="nav" style="display:none"></nav>
+  <div id="overlay"></div>
+</div>
+<script>
+/* =============== API client (talks to the Cloudflare Worker + D1) =============== */
+let ACCOUNTING=false;   // leave balances are not shown or enforced unless the server turns this on
+let LEAVE_TYPES={};   // { code: {label, active, quotas:{employee,manager}} } – set from the server
+const quotaFor=(who,type)=>{const r=typeof who==='string'?who:(hasRole(who,'manager')?'manager':'employee');return Number(((LEAVE_TYPES[type]||{}).quotas||{})[r==='employee'?'employee':'manager'])||0};
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[],resets:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, EMAIL_ENABLED=false, BOOTING=true;
+let gateMode=new URLSearchParams(location.search).get('reset')?'reset':'login';
+let gateMsg='';
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+async function api(method,url,body){
+  let r;
+  try{r=await fetch(url,{method,credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})}
+  catch(e){const err=new Error('Can’t reach the server. Check your connection and try again.');err.status=0;throw err}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login'&&PAGE!=='forgot')goLogin()},0)}
+    throw err;
+  }
+  return j;
+}
+async function loadState(){
+  try{
+    const s=await api('GET','/api/state');
+    ME=s.me;
+    ACCOUNTING=!!s.accounting;
+    // the server stores UTC; show people their own local time
+    const pad=n=>String(n).padStart(2,'0');
+    const local=t=>{if(typeof t!=='string'||t.length<16)return t;const d=new Date(t.slice(0,10)+'T'+t.slice(11,16)+':00Z');
+      return isNaN(d)?t:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+    (s.reqs||[]).forEach(r=>{r.created=local(r.created);(r.hist||[]).forEach(h=>{h[1]=local(h[1])})});
+    (s.audit||[]).forEach(a=>{a.t=local(a.t)});
+    (s.imports||[]).forEach(i=>{i.at=local(i.at)});
+    LEAVE_TYPES=Object.fromEntries((s.leaveTypes||[]).map(t=>[t.code,{label:t.name,active:t.active,quotas:t.quotas}]));
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[],resets:s.resets||[]};
+    return true;
+  }catch(e){
+    if(e.status===401){ME=null;DB=blankDB();try{const st=await api('GET','/api/auth/status');NEEDS_SETUP=st.needsSetup;EMAIL_ENABLED=!!st.emailEnabled}catch(_){}return false}
+    throw e;
+  }
+}
+function usedDays(empId,type){const y=todayISO().slice(0,4);return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Approved'&&r.from.startsWith(y)).reduce((a,r)=>a+r.days,0)}
+function pendingDays(empId,type){return DB.reqs.filter(r=>r.emp===empId&&r.kind==='leave'&&r.type===type&&r.status==='Pending').reduce((a,r)=>a+r.days,0)}
+
+/* ---- sign in / first-time setup ---- */
+function loginGate(title,sub,note){
+  if(BOOTING)return `<div class="gate"><div class="card" style="text-align:center;color:var(--mute)">Loading…</div></div>`;
+  const logo='<div class="logo">L</div>';
+  if(NEEDS_SETUP){
+    return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">Set up LeaveDesk</h1>
+      <p style="color:var(--mute);font-size:14px;margin-top:6px">Create the first administrator account. You can add everyone else afterwards.</p>
+      <label class="f">Your name</label><input class="in" id="s_name" autocomplete="name">
+      <label class="f">Email</label><input class="in" type="email" id="s_email" autocomplete="username">
+      <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
+      <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
+  }
+  if(gateMode==='reset')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:24px">Choose a new password</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">Enter the password you want to use from now on.</p>
+    <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="r_new" autocomplete="new-password">
+    <label class="f">Confirm new password</label><input class="in" type="password" id="r_new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitReset()">
+    <div id="g_err"></div><button class="btn" id="r_btn" onclick="submitReset()">Save new password</button>
+    <button class="btn ghost" style="color:var(--mute)" onclick="backToLogin()">Back to sign in</button></div></div>`;
+  return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
+    ${sub?`<p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>`:''}
+    ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
+    <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
+    <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
+    ${gateMsg?`<div style="background:var(--green-l);color:var(--green);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px">${gateMsg}</div>`:''}
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button>
+    <p style="text-align:center;margin-top:14px"><a href="/forgot" style="color:var(--brand);font-weight:600;font-size:14px;text-decoration:none" >Forgot password?</a></p></div></div>`;
+}
+function backToLogin(){gateMode='login';gateMsg='';try{history.replaceState(null,'','/')}catch(e){}render()}
+async function submitReset(){
+  const n1=document.getElementById('r_new').value,n2=document.getElementById('r_new2').value;
+  if(n1.length<8)return gateError('Password must be at least 8 characters.');
+  if(n1!==n2)return gateError('The two passwords don’t match.');
+  const token=new URLSearchParams(location.search).get('reset')||'';
+  const b=document.getElementById('r_btn');b.disabled=true;
+  try{
+    await api('POST','/api/auth/reset',{token,password:n1});
+    gateMode='login';gateMsg='Password updated. Sign in with your new password.';
+    try{history.replaceState(null,'','/')}catch(e){}
+    render();
+  }catch(e){gateError(e.message);b.disabled=false}
+}
+function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
+async function submitLogin(){
+  const email=document.getElementById('g_email').value.trim(),pw=document.getElementById('g_pw').value;
+  if(!email||!pw)return gateError('Enter your email and password.');
+  const b=document.getElementById('g_btn');b.disabled=true;
+  try{await api('POST','/api/auth/login',{email,password:pw});await loadState();afterAuth()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+async function submitSetup(){
+  const name=document.getElementById('s_name').value.trim(),email=document.getElementById('s_email').value.trim(),pw=document.getElementById('s_pw').value;
+  if(!name||!email||pw.length<8)return gateError('Enter your name, a valid email and a password of at least 8 characters.');
+  try{await api('POST','/api/auth/setup',{name,email,password:pw});NEEDS_SETUP=false;await loadState();afterAuth()}
+  catch(e){gateError(e.message)}
+}
+function afterAuth(){onAuthed()}
+async function doLogout(){try{await api('POST','/api/auth/logout',{})}catch(e){}ME=null;DB=blankDB();location.replace('/')}
+function deniedGate(title,msg){
+  return `<div class="gate"><div class="card"><div class="logo">L</div><h1 style="font-size:24px">${title}</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:8px">${msg}</p>
+    <p style="font-size:13px;margin-top:10px">Signed in as <b>${String(ME&&ME.name||'').replace(/</g,'&lt;')}</b>.</p>
+    <button class="btn" onclick="doLogout()">Sign out</button></div></div>`;
+}
+/* keep data fresh without a manual reload */
+function softRefresh(){
+  if(!ME||document.hidden)return;
+  loadState().then(()=>{
+    if(document.querySelector('#overlay .sheet'))return;
+    if(['INPUT','TEXTAREA','SELECT'].includes((document.activeElement||{}).tagName))return;
+    render();
+  }).catch(()=>{});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefresh()});
+setInterval(softRefresh,60000);
+/* ---- one login page, role decides the app ---- */
+const HOME={admin:'/admin',manager:'/manager',employee:'/employee'};
+const ACCESS={admin:['admin'],manager:['manager'],employee:['employee']};   // role needed to open each app
+const hasRole=(p,r)=>!!p&&(p.roles||[p.role]).includes(r);
+const canOpen=(p,k)=>!!p&&!!ACCESS[k]&&ACCESS[k].some(r=>hasRole(p,r));
+const homeFor=p=>HOME[hasRole(p,'admin')?'admin':hasRole(p,'manager')?'manager':'employee'];
+const APP_PATHS=['/admin','/manager','/employee'];
+function appKey(path){return path.split('#')[0].split('?')[0].replace(/\.html$/,'').replace(/^\/+/,'')}
+function goLogin(){location.replace('/?next='+encodeURIComponent(location.pathname+location.hash))}
+function nextTarget(){
+  const n=new URLSearchParams(location.search).get('next')||'';
+  if(!n.startsWith('/')||n.startsWith('//'))return null;
+  const k=appKey(n);
+  if(!ACCESS[k]||!ME||!canOpen(ME,k))return null;
+  return '/'+k+(n.includes('#')?n.slice(n.indexOf('#')):'');
+}
+function viewLinks(){
+  if(!ME)return [];
+  const all=[['admin','Admin','/admin'],['manager','Approvals','/manager'],['employee','My leave','/employee']];
+  return all.filter(([k])=>k!==PAGE&&canOpen(ME,k));
+}
+const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
+function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||homeFor(ME))}
+async function boot(){
+  try{await loadState()}catch(e){}
+  BOOTING=false;
+  if(PAGE==='forgot'){render();return}
+  if(PAGE==='login'){
+    if(ME&&gateMode!=='reset'){onAuthed();return}
+    render();return;
+  }
+  if(!ME){goLogin();return}
+  if(ME.mustChange){location.replace('/');return}
+  if(!canOpen(ME,PAGE)){location.replace(homeFor(ME));return}
+  render();
+}
+
+/* ---- password change (forced after first login, or any time) ---- */
+function forcedPasswordGate(){
+  return `<div class="gate"><div class="card"><div class="logo">L</div>
+    <h1 style="font-size:24px">Choose your own password</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">You signed in with a temporary password. Set a new one to continue.</p>
+    <label class="f">Temporary password</label><input class="in" type="password" id="p_cur" autocomplete="current-password">
+    <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="p_new" autocomplete="new-password">
+    <label class="f">Confirm new password</label><input class="in" type="password" id="p_new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitForcedPassword()">
+    <div id="g_err"></div>
+    <button class="btn" id="p_btn" onclick="submitForcedPassword()">Save and continue</button>
+    <button class="btn ghost" style="color:var(--mute)" onclick="doLogout()">Sign out</button></div></div>`;
+}
+async function submitForcedPassword(){
+  const cur=document.getElementById('p_cur').value,n1=document.getElementById('p_new').value,n2=document.getElementById('p_new2').value;
+  if(!cur||!n1)return gateError('Fill in all the fields.');
+  if(n1.length<8)return gateError('New password must be at least 8 characters.');
+  if(n1!==n2)return gateError('The two new passwords don’t match.');
+  const b=document.getElementById('p_btn');b.disabled=true;
+  try{await api('POST','/api/auth/password',{current:cur,next:n1});await loadState();onAuthed()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+function openChangePassword(){
+  sheet(`<h2 style="font-size:22px">Change password</h2>
+   <label class="f">Current password</label><input class="in" type="password" id="cp_cur" autocomplete="current-password">
+   <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="cp_new" autocomplete="new-password">
+   <label class="f">Confirm new password</label><input class="in" type="password" id="cp_new2" autocomplete="new-password">
+   <div id="cp_err"></div>
+   <button class="btn" onclick="doChangePassword()">Update password</button>`);
+}
+async function doChangePassword(){
+  const f=id=>document.getElementById(id).value,err=m=>{document.getElementById('cp_err').innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`};
+  if(!f('cp_cur')||!f('cp_new'))return err('Fill in all the fields.');
+  if(f('cp_new').length<8)return err('New password must be at least 8 characters.');
+  if(f('cp_new')!==f('cp_new2'))return err('The two new passwords don’t match.');
+  try{await api('POST','/api/auth/password',{current:f('cp_cur'),next:f('cp_new')});closeSheet();toast('Password updated')}
+  catch(e){err(e.message)}
+}
+function openPhone(){
+  sheet(`<h2 style="font-size:22px">Your WhatsApp number</h2>
+   <p style="color:var(--mute);font-size:14px;margin-top:6px">Used so your manager or team can message you on WhatsApp about requests. Include the country code, for example 919876543210.</p>
+   <label class="f">WhatsApp number</label><input class="in" type="tel" id="ph_val" value="${String(ME&&ME.phone||'').replace(/"/g,'')}" placeholder="919876543210">
+   <div id="ph_err"></div><button class="btn" onclick="savePhone()">Save number</button>`);
+}
+async function savePhone(){
+  try{await api('POST','/api/me/phone',{phone:document.getElementById('ph_val').value});await loadState();closeSheet();render();toast('Number saved')}
+  catch(e){document.getElementById('ph_err').innerHTML=`<div class="err">${String(e.message).replace(/</g,'&lt;')}</div>`}
+}
+
+/* ---- WhatsApp: prefilled message, the person just presses send ---- */
+const waDigits=p=>String(p||'').replace(/\D/g,'');
+const waUrl=(phone,text)=>`https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(text)}`;
+const _fd=s=>new Date(s+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+const waRange=r=>r.from===r.to?_fd(r.from):`${_fd(r.from)} – ${_fd(r.to)}`;
+const waKind=r=>r.kind==='wfh'?'work from home':((LEAVE_TYPES[r.type]||{label:'Leave'}).label.toLowerCase()+' leave');
+const reviewLink=no=>`${location.origin}/manager#/review/${no}`;
+function showWhatsApp(title,toName,phone,text){
+  const ok=waDigits(phone).length>=8, url=ok?waUrl(phone,text):'';
+  const safe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  sheet(`<div style="text-align:center;padding:6px 0">
+    <div style="width:60px;height:60px;border-radius:50%;background:var(--green-l);color:var(--green);display:grid;place-items:center;margin:0 auto 12px;font-size:28px">✓</div>
+    <h2 style="font-size:22px">${safe(title)}</h2>
+    ${ok?`<p style="color:var(--mute);font-size:14px;margin:8px 0 12px">Your message to ${safe(toName)} is ready in WhatsApp. Just press send there.</p>
+      <div class="card" style="text-align:left;font-size:14px;white-space:pre-wrap">${safe(text)}</div>
+      <a class="btn" style="display:block;text-decoration:none;text-align:center;background:#25D366;box-shadow:none" href="${url}" target="_blank" rel="noopener">Open WhatsApp</a>`
+     :`<p style="color:var(--mute);font-size:14px;margin:8px 0 12px">${safe(toName)} has no WhatsApp number saved, so a chat can’t be opened. Ask your admin to add it.</p>`}
+    <button class="btn ghost" style="color:var(--mute)" onclick="closeSheet()">Close</button></div>`);
+  if(ok){try{window.open(url,'_blank','noopener')}catch(e){}}
+}
+const PAGE='forgot';
+const $=s=>document.querySelector(s);
+function closeSheet(){}
+let sentTo='', adminMode=false;
+const back='<p style="text-align:center;margin-top:14px"><a href="/" style="color:var(--brand);font-weight:600;font-size:14px;text-decoration:none">Back to sign in</a></p>';
+const safe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function render(){
+  const v=document.getElementById('view');
+  if(sentTo){
+    v.innerHTML=`<div class="gate"><div class="card"><div class="logo">L</div>
+      <h1 style="font-size:24px">Check your email</h1>
+      <div class="fp-box fp-admin">A reset link has been sent to <u>${safe(sentTo)}</u>. It’s valid for 30 minutes, so check your spam folder too.</div>
+      <a class="btn" style="display:block;text-align:center;text-decoration:none" href="/">Back to sign in</a></div></div>`;
+    return;
+  }
+  if(!adminMode){
+    v.innerHTML=`<div class="gate"><div class="card"><div class="logo">L</div>
+      <h1 style="font-size:24px">Forgot your password?</h1>
+      <div class="fp-box fp-who" style="font-size:15px"><b>Please contact your administrator</b>They will change your password for you.</div>
+      <a class="btn" style="display:block;text-align:center;text-decoration:none" href="/">Back to sign in</a>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--mute)">Administrator?
+        <a href="#" onclick="adminMode=true;render();return false" style="color:var(--brand);font-weight:600;text-decoration:none">Reset by email</a></p>
+    </div></div>`;
+    return;
+  }
+  v.innerHTML=`<div class="gate"><div class="card"><div class="logo">L</div>
+    <h1 style="font-size:24px">Administrator reset</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">Enter your administrator email and we’ll send you a link to choose a new password.</p>
+    <label class="f">Administrator email</label><input class="in" type="email" id="fp_email" autocomplete="username" onkeydown="if(event.key==='Enter')submitForgotPage()">
+    <div id="g_err"></div>
+    <button class="btn" id="fp_btn" onclick="submitForgotPage()">Send reset link</button>
+    <p style="text-align:center;margin-top:14px"><a href="#" onclick="adminMode=false;render();return false" style="color:var(--brand);font-weight:600;font-size:14px;text-decoration:none">Back</a></p>
+  </div></div>`;
+  const e=document.getElementById('fp_email');if(e)e.focus();
+}
+async function submitForgotPage(){
+  const email=document.getElementById('fp_email').value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return gateError('Enter a valid email address.');
+  const b=document.getElementById('fp_btn');b.disabled=true;
+  try{await api('POST','/api/auth/forgot',{email});sentTo=email;render()}
+  catch(e){gateError(e.message);b.disabled=false}
+}
+boot();
+</script>
+</body>
+</html>

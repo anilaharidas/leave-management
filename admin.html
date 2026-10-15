@@ -288,6 +288,10 @@ nav a.vlink{display:none}
 @media(min-width:900px){nav a.vlink{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--mute);padding:12px 14px;border-radius:13px;text-decoration:none}nav a.vlink:hover{background:var(--brand-l)}}
 
 nav .sidelink+.sidelink{margin-top:0}
+
+.roles{display:flex;flex-direction:column;gap:8px}
+.rolechk{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);font-size:14px;cursor:pointer;margin:0}
+.rolechk input{width:18px;height:18px;accent-color:var(--brand);flex:none}
 </style>
 </head>
 <body>
@@ -299,10 +303,13 @@ nav .sidelink+.sidelink{margin-top:0}
 
 <script>
 /* =============== API client (talks to the Cloudflare Worker + D1) =============== */
+let ACCOUNTING=false;   // leave balances are not shown or enforced unless the server turns this on
 let LEAVE_TYPES={};   // { code: {label, active, quotas:{employee,manager}} } – set from the server
-const quotaFor=(role,type)=>Number(((LEAVE_TYPES[type]||{}).quotas||{})[role==='employee'?'employee':'manager'])||0;
-const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
-let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
+const quotaFor=(who,type)=>{const r=typeof who==='string'?who:(hasRole(who,'manager')?'manager':'employee');return Number(((LEAVE_TYPES[type]||{}).quotas||{})[r==='employee'?'employee':'manager'])||0};
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[],resets:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, EMAIL_ENABLED=false, BOOTING=true;
+let gateMode=new URLSearchParams(location.search).get('reset')?'reset':'login';
+let gateMsg='';
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 async function api(method,url,body){
   let r;
@@ -311,7 +318,7 @@ async function api(method,url,body){
   let j={};try{j=await r.json()}catch(e){}
   if(!r.ok){
     const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
-    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login')goLogin()},0)}
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login'&&PAGE!=='forgot')goLogin()},0)}
     throw err;
   }
   return j;
@@ -320,11 +327,19 @@ async function loadState(){
   try{
     const s=await api('GET','/api/state');
     ME=s.me;
+    ACCOUNTING=!!s.accounting;
+    // the server stores UTC; show people their own local time
+    const pad=n=>String(n).padStart(2,'0');
+    const local=t=>{if(typeof t!=='string'||t.length<16)return t;const d=new Date(t.slice(0,10)+'T'+t.slice(11,16)+':00Z');
+      return isNaN(d)?t:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+    (s.reqs||[]).forEach(r=>{r.created=local(r.created);(r.hist||[]).forEach(h=>{h[1]=local(h[1])})});
+    (s.audit||[]).forEach(a=>{a.t=local(a.t)});
+    (s.imports||[]).forEach(i=>{i.at=local(i.at)});
     LEAVE_TYPES=Object.fromEntries((s.leaveTypes||[]).map(t=>[t.code,{label:t.name,active:t.active,quotas:t.quotas}]));
-    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[],resets:s.resets||[]};
     return true;
   }catch(e){
-    if(e.status===401){ME=null;DB=blankDB();try{NEEDS_SETUP=(await api('GET','/api/auth/status')).needsSetup}catch(_){}return false}
+    if(e.status===401){ME=null;DB=blankDB();try{const st=await api('GET','/api/auth/status');NEEDS_SETUP=st.needsSetup;EMAIL_ENABLED=!!st.emailEnabled}catch(_){}return false}
     throw e;
   }
 }
@@ -343,12 +358,34 @@ function loginGate(title,sub,note){
       <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
       <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
   }
+  if(gateMode==='reset')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:24px">Choose a new password</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">Enter the password you want to use from now on.</p>
+    <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="r_new" autocomplete="new-password">
+    <label class="f">Confirm new password</label><input class="in" type="password" id="r_new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitReset()">
+    <div id="g_err"></div><button class="btn" id="r_btn" onclick="submitReset()">Save new password</button>
+    <button class="btn ghost" style="color:var(--mute)" onclick="backToLogin()">Back to sign in</button></div></div>`;
   return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
     ${sub?`<p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>`:''}
     ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
     <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
     <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
-    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button></div></div>`;
+    ${gateMsg?`<div style="background:var(--green-l);color:var(--green);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px">${gateMsg}</div>`:''}
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button>
+    <p style="text-align:center;margin-top:14px"><a href="/forgot" style="color:var(--brand);font-weight:600;font-size:14px;text-decoration:none" >Forgot password?</a></p></div></div>`;
+}
+function backToLogin(){gateMode='login';gateMsg='';try{history.replaceState(null,'','/')}catch(e){}render()}
+async function submitReset(){
+  const n1=document.getElementById('r_new').value,n2=document.getElementById('r_new2').value;
+  if(n1.length<8)return gateError('Password must be at least 8 characters.');
+  if(n1!==n2)return gateError('The two passwords don’t match.');
+  const token=new URLSearchParams(location.search).get('reset')||'';
+  const b=document.getElementById('r_btn');b.disabled=true;
+  try{
+    await api('POST','/api/auth/reset',{token,password:n1});
+    gateMode='login';gateMsg='Password updated. Sign in with your new password.';
+    try{history.replaceState(null,'','/')}catch(e){}
+    render();
+  }catch(e){gateError(e.message);b.disabled=false}
 }
 function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
 async function submitLogin(){
@@ -385,7 +422,10 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefres
 setInterval(softRefresh,60000);
 /* ---- one login page, role decides the app ---- */
 const HOME={admin:'/admin',manager:'/manager',employee:'/employee'};
-const ACCESS={admin:['admin'],manager:['manager','admin'],employee:['employee','manager','admin']};
+const ACCESS={admin:['admin'],manager:['manager'],employee:['employee']};   // role needed to open each app
+const hasRole=(p,r)=>!!p&&(p.roles||[p.role]).includes(r);
+const canOpen=(p,k)=>!!p&&!!ACCESS[k]&&ACCESS[k].some(r=>hasRole(p,r));
+const homeFor=p=>HOME[hasRole(p,'admin')?'admin':hasRole(p,'manager')?'manager':'employee'];
 const APP_PATHS=['/admin','/manager','/employee'];
 function appKey(path){return path.split('#')[0].split('?')[0].replace(/\.html$/,'').replace(/^\/+/,'')}
 function goLogin(){location.replace('/?next='+encodeURIComponent(location.pathname+location.hash))}
@@ -393,26 +433,27 @@ function nextTarget(){
   const n=new URLSearchParams(location.search).get('next')||'';
   if(!n.startsWith('/')||n.startsWith('//'))return null;
   const k=appKey(n);
-  if(!ACCESS[k]||!ME||!ACCESS[k].includes(ME.role))return null;
+  if(!ACCESS[k]||!ME||!canOpen(ME,k))return null;
   return '/'+k+(n.includes('#')?n.slice(n.indexOf('#')):'');
 }
 function viewLinks(){
   if(!ME)return [];
   const all=[['admin','Admin','/admin'],['manager','Approvals','/manager'],['employee','My leave','/employee']];
-  return all.filter(([k])=>k!==PAGE&&ACCESS[k].includes(ME.role));
+  return all.filter(([k])=>k!==PAGE&&canOpen(ME,k));
 }
 const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
-function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||HOME[ME.role])}
+function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||homeFor(ME))}
 async function boot(){
   try{await loadState()}catch(e){}
   BOOTING=false;
+  if(PAGE==='forgot'){render();return}
   if(PAGE==='login'){
-    if(ME){onAuthed();return}
+    if(ME&&gateMode!=='reset'){onAuthed();return}
     render();return;
   }
   if(!ME){goLogin();return}
   if(ME.mustChange){location.replace('/');return}
-  if(!ACCESS[PAGE].includes(ME.role)){location.replace(HOME[ME.role]);return}
+  if(!canOpen(ME,PAGE)){location.replace(homeFor(ME));return}
   render();
 }
 
@@ -549,7 +590,7 @@ function vDashboard(){
   const onLeave=DB.reqs.filter(r=>r.kind==='leave'&&r.status==='Approved'&&covers(r,TODAY));
   const wfh=DB.reqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&covers(r,TODAY));
   const pending=DB.reqs.filter(r=>r.status==='Pending');
-  const noMgr=active.filter(e=>e.role!=='admin'&&!e.mgr);
+  const noMgr=active.filter(e=>!hasRole(e,'admin')&&!e.mgr);
   const lastImp=imports[0];
   const alerts=[];
   if(noMgr.length)alerts.push(`${noMgr.length} active employee(s) have no reporting manager`);
@@ -588,11 +629,11 @@ function vActivity(){return `<header class="top"><div class="t"><small>Audit tra
 function empRow(e){
   return `<div class="card who ${e.active?'':'off'}" onclick="openEmp('${e.id}')"><div class="avatar">${ini(e.name)}</div>
    <div class="m"><b>${esc(e.name)}</b><small>${esc(e.desig||'')} · ${esc(e.team||'No team')} · ${e.id}</small></div>
-   <span class="tag ${e.active?e.role:'off'}">${e.active?e.role:'inactive'}</span></div>`;
+   <span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${e.active?(e.roles||[e.role]).map(r=>`<span class="tag ${r}">${r}</span>`).join(''):'<span class="tag off">inactive</span>'}</span></div>`;
 }
 function filteredEmps(){
   const q=empQ.trim().toLowerCase();
-  return emps.filter(e=>(empRole==='All'||(empRole==='Inactive'?!e.active:e.active&&e.role===empRole.toLowerCase()))
+  return emps.filter(e=>(empRole==='All'||(empRole==='Inactive'?!e.active:e.active&&hasRole(e,empRole.toLowerCase())))
     &&(empTeam==='All'||e.team===empTeam)
     &&(!q||[e.name,e.id,e.email,e.desig].join(' ').toLowerCase().includes(q)));
 }
@@ -613,9 +654,9 @@ function vEmployees(){
 }
 function nextCode(){const n=emps.map(e=>+e.id.split('-')[1]).filter(x=>x);return 'EMP-'+(n.length?Math.max(...n)+1:1001)}
 function openEmp(id){
-  const e=id?byId(id):{id:nextCode(),name:'',email:'',desig:'',role:emps.length?'employee':'admin',team:teams[0]||'',mgr:null,active:true};
+  const e=id?byId(id):{id:nextCode(),name:'',email:'',desig:'',roles:emps.length?['employee']:['admin','manager','employee'],team:teams[0]||'',mgr:null,active:true};
   const bad=id?[id,...descendants(id)]:[];
-  const mgrs=emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!bad.includes(m.id));
+  const mgrs=emps.filter(m=>m.active&&hasRole(m,'manager')&&!bad.includes(m.id));
   sheet(`<h2 style="font-size:22px">${id?'Edit employee':'Add employee'}</h2>
    <label class="f">Full name</label><input class="in" id="f_name" value="${esc(e.name)}">
    <div class="two"><div><label class="f">Employee ID</label><input class="in" id="f_code" value="${esc(e.id)}" ${id?'readonly':''}></div>
@@ -624,7 +665,7 @@ function openEmp(id){
    <label class="f">WhatsApp number <small style="color:var(--mute)">(with country code)</small></label><input class="in" id="f_phone" type="tel" value="${esc(e.phone||'')}" placeholder="e.g. 919876543210">
    ${id?`<div id="pw_wrap"><button type="button" class="btn line sm" style="margin-top:14px" onclick="showResetPw()">Reset password…</button></div>`
         :`<label class="f">Temporary password</label><input class="in" id="f_pw" name="temp-pw" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="At least 8 characters">`}
-   <div class="two"><div><label class="f">Role</label><select class="in" id="f_role">${['employee','manager','admin'].map(r=>`<option ${e.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
+   <div class="two"><div><label class="f">Roles</label><div class="roles">${['employee','manager','admin'].map(r=>`<label class="rolechk"><input type="checkbox" id="f_r_${r}" ${(e.roles||[e.role]).includes(r)?'checked':''}> ${r[0].toUpperCase()+r.slice(1)}</label>`).join('')}</div></div>
    <div><label class="f">Team</label><select class="in" id="f_team"><option value="">— No team —</option>${teams.map(t=>`<option ${e.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div></div>
    <label class="f">Reporting manager</label><select class="in" id="f_mgr"><option value="">— None —</option>${mgrs.map(m=>`<option value="${m.id}" ${e.mgr===m.id?'selected':''}>${esc(m.name)} (${esc(m.team)})</option>`).join('')}</select>
    <div class="toggle"><div><b style="font-size:14px">Active account</b><br><small style="color:var(--mute)">Inactive staff can’t log in or be assigned requests</small></div><button class="sw ${e.active?'on':''}" id="f_active" onclick="this.classList.toggle('on')"></button></div>
@@ -637,13 +678,14 @@ function showResetPw(){
 }
 async function saveEmp(id){
   const v=k=>$('#f_'+k).value.trim();
-  const d={name:v('name'),email:v('email').toLowerCase(),desig:v('desig'),role:v('role'),team:v('team'),mgr:v('mgr')||null,active:$('#f_active').classList.contains('on'),password:($('#f_pw')?$('#f_pw').value:''),phone:v('phone')};
+  const d={name:v('name'),email:v('email').toLowerCase(),desig:v('desig'),roles:['employee','manager','admin'].filter(r=>$('#f_r_'+r).checked),team:v('team'),mgr:v('mgr')||null,active:$('#f_active').classList.contains('on'),password:($('#f_pw')?$('#f_pw').value:''),phone:v('phone')};
   const code=id||v('code').toUpperCase();
   const fail=m=>{$('#f_err').innerHTML=`<div class="err">${esc(m)}</div>`};
   if(!d.name)return fail('Name is required.');
   if(!/^EMP-\d+$/.test(code))return fail('Employee ID must look like EMP-1234.');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email))return fail('Enter a valid email address.');
-  if(d.role!=='admin'&&!d.mgr)return fail('Managers and employees need a reporting manager.');
+  if(!d.roles.length)return fail('Choose at least one role.');
+  if(!d.roles.includes('admin')&&!d.mgr)return fail('Everyone except administrators needs a reporting manager.');
   if(!id&&d.password.length<8)return fail('Set a temporary password of at least 8 characters.');
   if(id){
     const e=byId(id);
@@ -666,16 +708,16 @@ function vTeams(){
   <p style="color:var(--mute);font-size:13px;margin:-4px 2px 12px">Requests go to the manager set here. Changing a manager only affects new requests.</p>
   <div class="list2">${emps.filter(e=>e.active).map(e=>{
     const bad=[e.id,...descendants(e.id)];
-    const opts=emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!bad.includes(m.id));
+    const opts=emps.filter(m=>m.active&&hasRole(m,'manager')&&!bad.includes(m.id));
     return `<div class="card"><div class="row" style="margin-bottom:10px"><div class="avatar" style="flex:none;width:36px;height:36px;font-size:12px">${ini(e.name)}</div><div style="flex:1;min-width:0"><b style="font-size:14px">${esc(e.name)}</b><br><small style="color:var(--mute)">${esc(e.team)} · ${esc(e.desig)}</small></div></div>
       <select class="in" ${e.role==='admin'&&!e.mgr?'':''} onchange="setMgr('${e.id}',this.value)"><option value="">— None —</option>${opts.map(m=>`<option value="${m.id}" ${e.mgr===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></div>`}).join('')}</div>`;
 }
 async function setMgr(id,val){
   const e=byId(id);
-  if(!val&&e.role!=='admin'){toast('Only admins can have no reporting manager');render();return}
+  if(!val&&!hasRole(e,'admin')){toast('Only administrators can have no reporting manager');render();return}
   try{
     if(val)await api('POST','/api/employees/bulk',{ids:[id],mgr:val});
-    else await api('PUT','/api/employees/'+encodeURIComponent(id),{name:e.name,email:e.email,desig:e.desig,role:e.role,team:e.team,mgr:null,active:e.active,phone:e.phone});
+    else await api('PUT','/api/employees/'+encodeURIComponent(id),{name:e.name,email:e.email,desig:e.desig,roles:e.roles||[e.role],team:e.team,mgr:null,active:e.active,phone:e.phone});
     await loadState();render();toast(`${e.name} now reports to ${val?nameOf(val):'no one'}`);
   }catch(err){toast(err.message);try{await loadState()}catch(_){}render()}
 }
@@ -728,7 +770,7 @@ function vTeam(){
   ${mem.length?`<div class="list2">${mem.map(e=>`<div class="card who" style="cursor:default"><input type="checkbox" class="chk" aria-label="Select ${esc(e.name)}" ${sel.has(e.id)?'checked':''} onchange="toggleSel('${e.id}')">
      <div class="avatar" onclick="openEmp('${e.id}')" style="cursor:pointer">${ini(e.name)}</div>
      <div class="m" onclick="openEmp('${e.id}')" style="cursor:pointer"><b>${esc(e.name)}${lead&&lead.id===e.id?' <span class="tag admin">Lead</span>':''}</b><small>${esc(e.desig)} · Reports to ${e.mgr?esc(nameOf(e.mgr)):'—'}</small></div>
-     <span class="tag ${e.role}">${e.role}</span></div>`).join('')}</div>`
+     <span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${(e.roles||[e.role]).map(r=>`<span class="tag ${r}">${r}</span>`).join('')}</span></div>`).join('')}</div>`
    :'<div class="empty">No members yet. Use <b>+ Add members</b> to bring people in.</div>'}`;
 }
 function toggleSel(id){sel.has(id)?sel.delete(id):sel.add(id);render()}
@@ -739,7 +781,7 @@ async function setLead(id){
   catch(err){toast(err.message);render()}
 }
 function mgrOptions(excl,pre){
-  return emps.filter(m=>m.active&&['manager','admin'].includes(m.role)&&!excl.includes(m.id))
+  return emps.filter(m=>m.active&&hasRole(m,'manager')&&!excl.includes(m.id))
     .map(m=>`<option value="${m.id}" ${m.id===pre?'selected':''}>${esc(m.name)} (${esc(m.team)})</option>`).join('');
 }
 function openAdd(){
@@ -982,14 +1024,15 @@ function vReports(){
 }
 function exportReport(){
   const act=emps.filter(e=>e.active&&(repTeam==='All'||e.team===repTeam));
-  const rows=act.map(e=>{const s=monthStats([e]);return [e.id,e.name,e.team,s.c.present,s.c.late,s.c.wfh,s.c.half_day,s.c.leave,s.c.absent].join(',')});
+  const cell=v=>{v=String(v??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const rows=act.map(e=>{const s=monthStats([e]);return [e.id,e.name,e.team,s.c.present,s.c.late,s.c.wfh,s.c.half_day,s.c.leave,s.c.absent].map(cell).join(',')});
   download('attendance_summary_'+TODAY.slice(0,7)+'.csv','emp_code,name,team,present,late,wfh,half_day,leave,absent\n'+rows.join('\n'));
   toast('Report downloaded');
 }
 
 /* =============== more (mobile) + shell =============== */
 function openMore(){
-  const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['policy','Leave policy','cal'],['reports','Reports','chart'],['activity','Activity log','log']];
+  const it=[['teams','Teams & Reporting','team'],['org','Organization','org'],['policy','Leave types','cal'],['reports','Reports','chart'],['activity','Activity log','log']];
   sheet(`<h2 style="font-size:22px;margin-bottom:6px">More</h2>${it.map(([k,l,i])=>`<div class="more" onclick="go('${k}')">${ic(i)}<span>${l}</span>${ic('right')}</div>`).join('')}
    <div class="more" onclick="go('profile')">${ic('right')}<span>Profile &amp; password</span>${ic('right')}</div>
    <div class="more" style="color:var(--red);border:none" onclick="closeSheet();doLogout()">${ic('out')}<span>Sign out</span></div>`);
@@ -1008,30 +1051,34 @@ function vProfile(){
 function vPolicy(){
   const types=Object.entries(LEAVE_TYPES);
   const num=(id,v)=>`<input class="in" type="number" min="0" max="366" step="0.5" id="${id}" value="${v}">`;
-  return `<header class="top"><div class="t"><small>Days per year, per person</small><h1>Leave policy</h1></div></header>
-  <p style="color:var(--mute);font-size:13px;margin:-4px 2px 14px">Choose how many days each leave type gives. Managers and admins use the Managers column. Changes apply straight away: days left = allowance minus approved days this year. Use 0 to hide a type from a group.</p>
+  return `<header class="top"><div class="t"><small>${ACCOUNTING?'Days per year, per person':'What people can apply for'}</small><h1>Leave types</h1></div></header>
+  <p style="color:var(--mute);font-size:13px;margin:-4px 2px 14px">${ACCOUNTING
+    ?'Choose how many days each leave type gives. Managers and admins use the Managers column. Use 0 to hide a type from a group.'
+    :'Choose which leave types people can apply for. Leave balances and allowances are not tracked for now.'}</p>
   <div id="lp_err"></div>
   <div class="list2">${types.map(([k,t])=>`<div class="card">
     <div class="row" style="margin-bottom:10px"><input class="in" id="lp_${k}_name" value="${esc(t.label)}" style="font-weight:700"><span class="tag ${t.active?'ok':'off'}" style="flex:none">${t.active?'On':'Off'}</span></div>
-    <div class="two"><div><label class="f" style="margin-top:0">Employees</label>${num('lp_'+k+'_employee',t.quotas.employee)}</div>
-      <div><label class="f" style="margin-top:0">Managers</label>${num('lp_'+k+'_manager',t.quotas.manager)}</div></div>
+    ${ACCOUNTING?`<div class="two"><div><label class="f" style="margin-top:0">Employees</label>${num('lp_'+k+'_employee',t.quotas.employee)}</div>
+      <div><label class="f" style="margin-top:0">Managers</label>${num('lp_'+k+'_manager',t.quotas.manager)}</div></div>`:''}
     <div class="toggle"><div><b style="font-size:14px">Available to apply</b></div><button class="sw ${t.active?'on':''}" id="lp_${k}_active" onclick="this.classList.toggle('on')"></button></div>
     <button class="btn" style="margin-top:12px" onclick="savePolicy('${k}')">Save ${esc(t.label)}</button></div>`).join('')}</div>
   <div class="sec"><h2>Add a leave type</h2></div>
   <div class="card">
-    <label class="f" style="margin-top:0">Name</label><input class="in" id="lp_new_name" placeholder="e.g. Maternity, Study, Comp-off">
-    <div class="two"><div><label class="f">Employees (days)</label>${num('lp_new_employee',0)}</div><div><label class="f">Managers (days)</label>${num('lp_new_manager',0)}</div></div>
+    <label class="f" style="margin-top:0">Name</label><input class="in" id="lp_new_name" placeholder="e.g. Maternity, Study">
+    ${ACCOUNTING?`<div class="two"><div><label class="f">Employees (days)</label>${num('lp_new_employee',0)}</div><div><label class="f">Managers (days)</label>${num('lp_new_manager',0)}</div></div>`:''}
     <button class="btn" onclick="addPolicy()">Add leave type</button></div>`;
 }
 async function savePolicy(k){
   const g=id=>document.getElementById('lp_'+k+'_'+id);
+  const q=(LEAVE_TYPES[k]||{}).quotas||{employee:0,manager:0};
   try{
-    await api('PUT','/api/leave-types/'+encodeURIComponent(k),{name:g('name').value.trim(),employee:g('employee').value,manager:g('manager').value,active:g('active').classList.contains('on')});
-    await loadState();render();toast('Leave policy saved');
+    await api('PUT','/api/leave-types/'+encodeURIComponent(k),{name:g('name').value.trim(),
+      employee:g('employee')?g('employee').value:q.employee,manager:g('manager')?g('manager').value:q.manager,active:g('active').classList.contains('on')});
+    await loadState();render();toast('Leave types saved');
   }catch(err){toast(err.message)}
 }
 async function addPolicy(){
-  const g=id=>document.getElementById('lp_new_'+id).value;
+  const g=id=>{const el=document.getElementById('lp_new_'+id);return el?el.value:'0'};
   try{
     await api('POST','/api/leave-types',{name:g('name').trim(),employee:g('employee'),manager:g('manager')});
     await loadState();render();toast('Leave type added');
@@ -1040,9 +1087,9 @@ async function addPolicy(){
 const VIEWS={dashboard:vDashboard,policy:vPolicy,profile:vProfile,employees:vEmployees,teams:vTeams,team:vTeam,attendance:vAttendance,holidays:vHolidays,org:vOrg,reports:vReports,activity:vActivity};
 function onAuthed(){tab='dashboard';render()}
 function render(){
-  if(!ME||ME.role!=='admin'){
+  if(!ME||!hasRole(ME,'admin')){
     $('#nav').style.display='none';
-    $('#view').innerHTML=(ME&&ME.role!=='admin')?deniedGate('Admins only','Your account doesn’t have admin access. Ask an administrator, or use the employee or manager app.')
+    $('#view').innerHTML=(ME&&!hasRole(ME,'admin'))?deniedGate('Admins only','Your account doesn’t have admin access. Ask an administrator, or use the employee or manager app.')
       :loginGate('Admin sign in','Sign in with your administrator account.','');
     return;
   }
@@ -1053,7 +1100,7 @@ function render(){
   $('#view').innerHTML='<div class="page'+(['org','activity','team','profile','policy'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
   $('#view').scrollTop=st;
   if(tab==='employees')drawEmpList();
-  const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['policy','Leave policy','cal','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
+  const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['policy','Leave types','cal','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'
    +items.map(([k,l,i,c])=>`<button class="${cur===k?'on':''} ${c}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('')
    +`<button class="mOnly ${['teams','org','policy','reports','activity','profile'].includes(cur)?'on':''}" onclick="openMore()">${ic('more')}More</button>`

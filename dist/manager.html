@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -275,10 +275,13 @@ nav .sidelink+.sidelink{margin-top:0}
 
 <script>
 /* =============== API client (talks to the Cloudflare Worker + D1) =============== */
+let ACCOUNTING=false;   // leave balances are not shown or enforced unless the server turns this on
 let LEAVE_TYPES={};   // { code: {label, active, quotas:{employee,manager}} } – set from the server
-const quotaFor=(role,type)=>Number(((LEAVE_TYPES[type]||{}).quotas||{})[role==='employee'?'employee':'manager'])||0;
-const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
-let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
+const quotaFor=(who,type)=>{const r=typeof who==='string'?who:(hasRole(who,'manager')?'manager':'employee');return Number(((LEAVE_TYPES[type]||{}).quotas||{})[r==='employee'?'employee':'manager'])||0};
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[],resets:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, EMAIL_ENABLED=false, BOOTING=true;
+let gateMode=new URLSearchParams(location.search).get('reset')?'reset':'login';
+let gateMsg='';
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 async function api(method,url,body){
   let r;
@@ -287,7 +290,7 @@ async function api(method,url,body){
   let j={};try{j=await r.json()}catch(e){}
   if(!r.ok){
     const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
-    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login')goLogin()},0)}
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login'&&PAGE!=='forgot')goLogin()},0)}
     throw err;
   }
   return j;
@@ -296,11 +299,19 @@ async function loadState(){
   try{
     const s=await api('GET','/api/state');
     ME=s.me;
+    ACCOUNTING=!!s.accounting;
+    // the server stores UTC; show people their own local time
+    const pad=n=>String(n).padStart(2,'0');
+    const local=t=>{if(typeof t!=='string'||t.length<16)return t;const d=new Date(t.slice(0,10)+'T'+t.slice(11,16)+':00Z');
+      return isNaN(d)?t:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+    (s.reqs||[]).forEach(r=>{r.created=local(r.created);(r.hist||[]).forEach(h=>{h[1]=local(h[1])})});
+    (s.audit||[]).forEach(a=>{a.t=local(a.t)});
+    (s.imports||[]).forEach(i=>{i.at=local(i.at)});
     LEAVE_TYPES=Object.fromEntries((s.leaveTypes||[]).map(t=>[t.code,{label:t.name,active:t.active,quotas:t.quotas}]));
-    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[],resets:s.resets||[]};
     return true;
   }catch(e){
-    if(e.status===401){ME=null;DB=blankDB();try{NEEDS_SETUP=(await api('GET','/api/auth/status')).needsSetup}catch(_){}return false}
+    if(e.status===401){ME=null;DB=blankDB();try{const st=await api('GET','/api/auth/status');NEEDS_SETUP=st.needsSetup;EMAIL_ENABLED=!!st.emailEnabled}catch(_){}return false}
     throw e;
   }
 }
@@ -319,12 +330,34 @@ function loginGate(title,sub,note){
       <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
       <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
   }
+  if(gateMode==='reset')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:24px">Choose a new password</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">Enter the password you want to use from now on.</p>
+    <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="r_new" autocomplete="new-password">
+    <label class="f">Confirm new password</label><input class="in" type="password" id="r_new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitReset()">
+    <div id="g_err"></div><button class="btn" id="r_btn" onclick="submitReset()">Save new password</button>
+    <button class="btn ghost" style="color:var(--mute)" onclick="backToLogin()">Back to sign in</button></div></div>`;
   return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
     ${sub?`<p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>`:''}
     ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
     <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
     <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
-    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button></div></div>`;
+    ${gateMsg?`<div style="background:var(--green-l);color:var(--green);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px">${gateMsg}</div>`:''}
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button>
+    <p style="text-align:center;margin-top:14px"><a href="/forgot" style="color:var(--brand);font-weight:600;font-size:14px;text-decoration:none" >Forgot password?</a></p></div></div>`;
+}
+function backToLogin(){gateMode='login';gateMsg='';try{history.replaceState(null,'','/')}catch(e){}render()}
+async function submitReset(){
+  const n1=document.getElementById('r_new').value,n2=document.getElementById('r_new2').value;
+  if(n1.length<8)return gateError('Password must be at least 8 characters.');
+  if(n1!==n2)return gateError('The two passwords don’t match.');
+  const token=new URLSearchParams(location.search).get('reset')||'';
+  const b=document.getElementById('r_btn');b.disabled=true;
+  try{
+    await api('POST','/api/auth/reset',{token,password:n1});
+    gateMode='login';gateMsg='Password updated. Sign in with your new password.';
+    try{history.replaceState(null,'','/')}catch(e){}
+    render();
+  }catch(e){gateError(e.message);b.disabled=false}
 }
 function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
 async function submitLogin(){
@@ -361,7 +394,10 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefres
 setInterval(softRefresh,60000);
 /* ---- one login page, role decides the app ---- */
 const HOME={admin:'/admin',manager:'/manager',employee:'/employee'};
-const ACCESS={admin:['admin'],manager:['manager','admin'],employee:['employee','manager','admin']};
+const ACCESS={admin:['admin'],manager:['manager'],employee:['employee']};   // role needed to open each app
+const hasRole=(p,r)=>!!p&&(p.roles||[p.role]).includes(r);
+const canOpen=(p,k)=>!!p&&!!ACCESS[k]&&ACCESS[k].some(r=>hasRole(p,r));
+const homeFor=p=>HOME[hasRole(p,'admin')?'admin':hasRole(p,'manager')?'manager':'employee'];
 const APP_PATHS=['/admin','/manager','/employee'];
 function appKey(path){return path.split('#')[0].split('?')[0].replace(/\.html$/,'').replace(/^\/+/,'')}
 function goLogin(){location.replace('/?next='+encodeURIComponent(location.pathname+location.hash))}
@@ -369,26 +405,27 @@ function nextTarget(){
   const n=new URLSearchParams(location.search).get('next')||'';
   if(!n.startsWith('/')||n.startsWith('//'))return null;
   const k=appKey(n);
-  if(!ACCESS[k]||!ME||!ACCESS[k].includes(ME.role))return null;
+  if(!ACCESS[k]||!ME||!canOpen(ME,k))return null;
   return '/'+k+(n.includes('#')?n.slice(n.indexOf('#')):'');
 }
 function viewLinks(){
   if(!ME)return [];
   const all=[['admin','Admin','/admin'],['manager','Approvals','/manager'],['employee','My leave','/employee']];
-  return all.filter(([k])=>k!==PAGE&&ACCESS[k].includes(ME.role));
+  return all.filter(([k])=>k!==PAGE&&canOpen(ME,k));
 }
 const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
-function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||HOME[ME.role])}
+function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||homeFor(ME))}
 async function boot(){
   try{await loadState()}catch(e){}
   BOOTING=false;
+  if(PAGE==='forgot'){render();return}
   if(PAGE==='login'){
-    if(ME){onAuthed();return}
+    if(ME&&gateMode!=='reset'){onAuthed();return}
     render();return;
   }
   if(!ME){goLogin();return}
   if(ME.mustChange){location.replace('/');return}
-  if(!ACCESS[PAGE].includes(ME.role)){location.replace(HOME[ME.role]);return}
+  if(!canOpen(ME,PAGE)){location.replace(homeFor(ME));return}
   render();
 }
 
@@ -501,10 +538,10 @@ let meId=null;
 let tab='home', pendingLink=null;
 let apFilter='Pending', apKind='All';
 let calMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1), calSel=null;
-const me=()=>ME&&['manager','admin'].includes(ME.role)?ME:null;
+const me=()=>ME&&hasRole(ME,'manager')?ME:null;
 const mine=()=>DB.reqs.filter(r=>r.appr===meId);
 const team=()=>DB.emps.filter(p=>p.mgr===meId&&p.active);
-const remaining=(p,type)=>quotaFor(p.role,type)-usedDays(p.id,type);
+const remaining=(p,type)=>quotaFor(p,type)-usedDays(p.id,type);
 function go(t){tab=t;closeSheet();render();$('#view').scrollTop=0}
 
 /* =============== secure link + sign in =============== */
@@ -598,7 +635,6 @@ function openReview(no){
     return;
   }
   const p=person(r.emp), isL=r.kind==='leave', pend=r.status==='Pending';
-  const rem=isL?remaining(p,r.type):null, short=isL&&r.days>rem;
   const cf=conflicts(r);
   const teamSize=Math.max(team().length,1);
   const away=new Set(cf.map(x=>x.emp)).size+1;
@@ -610,11 +646,7 @@ function openReview(no){
      <div class="kv"><span>Duration</span><b>${r.days} day${r.days===1?'':'s'}${r.half?' (half day)':''}</b></div>
      <div class="kv"><span>Applied</span><b>${fmt(r.created)}</b></div>
      <div class="kv"><span>Reason</span><b style="max-width:62%;text-align:right">${esc(r.reason)}</b></div></div>
-   ${isL?`<div class="card"><div class="row"><b style="flex:none;font-size:14px">${TLABEL[r.type]} balance</b><span style="text-align:right;font-size:14px"><b>${rem}</b> left → <b style="color:${short?'var(--red)':'var(--green)'}">${short?'short by '+(r.days-rem):rem-r.days}</b></span></div>
-     <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,usedDays(p.id,r.type)/(quotaFor(p.role,r.type)||1)*100)}%"></i></div>
-     <small style="color:var(--mute)">${usedDays(p.id,r.type)} of ${quotaFor(p.role,r.type)} used this year. Deducted only on approval.</small></div>`:''}
    ${cf.length?`<div class="warn"><b>${cf.length} overlapping request${cf.length===1?'':'s'} in the team</b><br>${cf.map(x=>`${esc(person(x.emp).name)} · ${range(x)} <small>(${x.status.toLowerCase()})</small>`).join('<br>')}<br><small>If approved, ${away} of ${teamSize} would be away.</small></div>`:`<div class="good">No overlaps with the team on these dates.</div>`}
-   ${short&&pend?`<div class="err">Not enough ${TLABEL[r.type].toLowerCase()} balance. Approval is blocked. Ask the employee to change type or dates, or contact HR.</div>`:''}
    ${r.rej?`<div class="err"><b>Rejection reason</b><br>${esc(r.rej)}</div>`:''}
    <div class="sec" style="margin:16px 2px 6px"><h2 style="font-size:16px">History</h2></div>
    <div class="tl">${r.hist.map(([a,t])=>`<div style="--c:${colors[a.split(' ')[0]]||'var(--mute)'}">${esc(a)}<small>${esc(t)}</small></div>`).join('')}</div>
@@ -623,7 +655,7 @@ function openReview(no){
       <div class="quick-r">${['Team deadline that week','Too many people away','Please choose different dates','Need more details'].map(s=>`<button onclick="$('#rj_text').value='${s}'">${s}</button>`).join('')}</div>
       <div id="rj_err"></div>
       <div class="row" style="margin-top:14px"><button class="btn line" style="margin-top:0" onclick="$('#rj').style.display='none';$('#acts').style.display='flex'">Back</button><button class="btn no" style="margin-top:0" onclick="doReject('${r.no}')">Confirm reject</button></div></div>
-     <div id="acts" class="row" style="margin-top:18px"><button class="btn line" style="margin-top:0" onclick="$('#acts').style.display='none';$('#rj').style.display='block'">Reject</button><button class="btn ok" style="margin-top:0" ${short?'disabled':''} onclick="doApprove('${r.no}')">Approve</button></div>`:''}
+     <div id="acts" class="row" style="margin-top:18px"><button class="btn line" style="margin-top:0" onclick="$('#acts').style.display='none';$('#rj').style.display='block'">Reject</button><button class="btn ok" style="margin-top:0" onclick="doApprove('${r.no}')">Approve</button></div>`:''}
    ${!pend&&r.status!=='Cancelled'?`<button class="btn" style="margin-top:12px;background:#25D366;box-shadow:none" onclick="messageEmployee('${r.no}')">Message ${esc(p.name.split(' ')[0])} on WhatsApp</button>`:''}
    <button class="btn line" style="margin-top:12px" onclick="copyLink('${r.no}')">Copy secure review link</button>`);
 }
@@ -642,7 +674,6 @@ function messageEmployee(no,verb){
 async function doApprove(no){
   const r0=DB.reqs.find(x=>x.no===no);if(!r0)return;
   const p=person(r0.emp);
-  if(r0.kind==='leave'&&r0.days>remaining(p,r0.type)){toast('Insufficient balance');return}
   try{
     await api('POST',`/api/requests/${encodeURIComponent(no)}/approve`,{});
     await loadState();closeSheet();render();toast('Approved');
@@ -693,35 +724,37 @@ function vTeam(){
   const t=team();
   return `<header class="top"><div class="t"><small>${esc(me().team||'No team')} · ${t.length} ${t.length===1?'person':'people'}</small><h1>My team</h1></div></header>
   ${t.length?`<div class="list2">${t.map(p=>{const s=status(p,TODAY),pe=DB.reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length;
-   return `<div class="card who" onclick="openMember('${p.id}')"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${esc(p.desig||'')}</small><small>Annual: ${remaining(p,'annual')} left${pe?` · ${pe} pending`:''}</small></div>
+   return `<div class="card who" onclick="openMember('${p.id}')"><div class="avatar">${ini(p.name)}</div><div class="m"><b>${esc(p.name)}</b><small>${esc(p.desig||'')}</small><small>${pe?`${pe} pending`:'No pending requests'}</small></div>
     <span class="tag ${s?(s.s==='WFH'?'info':'soon'):'ok'}">${s?s.s:'In'}</span></div>`}).join('')}</div>`
    :'<div class="empty">Nobody reports to you yet.</div>'}`;
 }
 function openMember(id){
   const p=person(id),rs=DB.reqs.filter(r=>r.emp===id).sort((a,b)=>b.from.localeCompare(a.from));
   sheet(`<div class="row"><div class="avatar" style="flex:none;width:52px;height:52px">${ini(p.name)}</div><div style="flex:1"><h2 style="font-size:22px">${esc(p.name)}</h2><small style="color:var(--mute)">${esc(p.desig||'')} · ${esc(p.id)}</small></div></div>
-   <div class="card" style="margin-top:14px">${typeCodes().filter(t=>quotaFor(p.role,t)>0).map(t=>`<div style="margin-bottom:12px"><div class="row"><b style="font-size:14px">${TLABEL[t]}</b><span style="text-align:right;font-size:13px;color:var(--mute)">${Math.max(0,remaining(p,t))} of ${quotaFor(p.role,t)} left</span></div><div class="bar" style="margin-top:6px"><i style="width:${Math.min(100,usedDays(p.id,t)/quotaFor(p.role,t)*100)}%"></i></div></div>`).join('')}</div>
    <div class="sec" style="margin:14px 2px 8px"><h2 style="font-size:16px">Recent requests</h2></div>
    ${rs.slice(0,5).map(r=>`<div class="card who" onclick="openReview('${r.no}')"><div class="m"><b>${r.kind==='wfh'?'Work from home':TLABEL[r.type]+' leave'}</b><small>${range(r)} · ${r.days} day${r.days===1?'':'s'}</small></div><span class="pill ${r.status}">${r.status}</span></div>`).join('')||'<div class="empty">No requests yet.</div>'}`);
 }
 
 /* =============== reports =============== */
 function vReports(){
-  const t=team(), ym=TODAY.slice(0,7);
-  const tot=typeCodes().map(k=>[k,t.reduce((a,p)=>a+usedDays(p.id,k),0),t.reduce((a,p)=>a+quotaFor(p.role,k),0)]).filter(x=>x[2]>0||x[1]>0);
-  const wfh=DB.reqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&t.some(p=>p.id===r.emp)&&r.from.startsWith(ym));
+  const t=team(), ym=TODAY.slice(0,7), yr=TODAY.slice(0,4);
+  const ids=new Set(t.map(p=>p.id));
+  const taken=DB.reqs.filter(r=>r.kind==='leave'&&r.status==='Approved'&&ids.has(r.emp)&&r.from.startsWith(yr));
+  const days=(arr)=>arr.reduce((a,r)=>a+r.days,0);
+  const byType=typeCodes().map(k=>[k,days(taken.filter(r=>r.type===k))]);
+  const wfh=DB.reqs.filter(r=>r.kind==='wfh'&&r.status==='Approved'&&ids.has(r.emp)&&r.from.startsWith(ym));
   const monthName=new Date().toLocaleDateString('en-GB',{month:'long'});
   return `<header class="top"><div class="t"><small>${esc(me().team||'Your team')} · ${new Date().getFullYear()}</small><h1>Reports</h1></div></header>
-  <div class="kpis"><div class="kpi g"><small>Leave days used</small><b>${tot.reduce((a,x)=>a+x[1],0)}</b></div>
+  <div class="kpis"><div class="kpi g"><small>Leave days approved</small><b>${days(taken)}</b></div>
    <div class="kpi"><small>Approved this month</small><b style="color:var(--green)">${mine().filter(r=>r.status==='Approved'&&r.created.startsWith(ym)).length}</b></div>
    <div class="kpi"><small>Rejected (all time)</small><b style="color:var(--red)">${mine().filter(r=>r.status==='Rejected').length}</b></div>
-   <div class="kpi"><small>WFH days (${monthName})</small><b style="color:var(--plum)">${wfh.reduce((a,r)=>a+r.days,0)}</b></div></div>
-  ${t.length?`<div class="cols"><div><div class="sec" style="margin-top:6px"><h2>Leave used by type</h2></div>
-  ${tot.map(([k,u,c])=>`<div class="card"><div class="row"><b>${TLABEL[k]}</b><span style="text-align:right;color:var(--mute);font-size:13px">${u} of ${c} days</span></div><div class="bar" style="margin-top:10px"><i style="width:${c?u/c*100:0}%"></i></div></div>`).join('')}</div>
+   <div class="kpi"><small>WFH days (${monthName})</small><b style="color:var(--plum)">${days(wfh)}</b></div></div>
+  ${t.length?`<div class="cols"><div><div class="sec" style="margin-top:6px"><h2>Approved leave by type</h2></div>
+  ${byType.map(([k,d])=>`<div class="card"><div class="row"><b>${esc(TLABEL[k])}</b><span style="text-align:right;font-size:15px"><b>${d}</b> day${d===1?'':'s'}</span></div></div>`).join('')||'<div class="empty">No leave types.</div>'}</div>
   <div><div class="sec" style="margin-top:6px"><h2>By person</h2></div>
   <div class="tablewrap"><table><tr><th>Name</th>${typeCodes().map(k=>`<th>${esc(TLABEL[k])}</th>`).join('')}<th>Pending</th></tr>
-  ${t.map(p=>`<tr><td>${esc(p.name)}</td>${typeCodes().map(k=>`<td>${Math.max(0,remaining(p,k))}</td>`).join('')}<td>${DB.reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length}</td></tr>`).join('')}</table></div>
-  <p style="color:var(--mute);font-size:12px;margin-top:8px">Balances show days remaining.</p></div></div>`:'<div class="empty">Reports appear once people report to you.</div>'}`;
+  ${t.map(p=>`<tr><td>${esc(p.name)}</td>${typeCodes().map(k=>`<td>${days(taken.filter(r=>r.emp===p.id&&r.type===k))}</td>`).join('')}<td>${DB.reqs.filter(r=>r.emp===p.id&&r.status==='Pending').length}</td></tr>`).join('')}</table></div>
+  <p style="color:var(--mute);font-size:12px;margin-top:8px">Days of approved leave this year.</p></div></div>`:'<div class="empty">Reports appear once people report to you.</div>'}`;
 }
 
 /* =============== profile + shell =============== */
@@ -731,7 +764,7 @@ function vProfile(){
   <div class="prof"><div class="avatar">${ini(m.name)}</div><h1>${esc(m.name)}</h1><p>${esc(m.desig||'Manager')}</p></div>
   <div class="card" style="margin-top:18px;padding:6px 16px">
    <div class="kv"><span>Employee ID</span><b>${esc(m.id)}</b></div><div class="kv"><span>Email</span><b>${esc(m.email)}</b></div>
-   <div class="kv"><span>Team</span><b>${esc(m.team||'—')}</b></div><div class="kv"><span>Direct reports</span><b>${team().length}</b></div><div class="kv"><span>Role</span><b>${esc(m.role)}</b></div></div>
+   <div class="kv"><span>Team</span><b>${esc(m.team||'—')}</b></div><div class="kv"><span>Direct reports</span><b>${team().length}</b></div><div class="kv"><span>Roles</span><b>${esc((m.roles||[m.role]).join(', '))}</b></div></div>
   <button class="btn line" onclick="openPhone()">WhatsApp number${m.phone?' · '+esc(m.phone):''}</button>
   <button class="btn line" onclick="openChangePassword()">Change password</button>
   <button class="btn line" onclick="doLogout()">Sign out</button>`;

@@ -55,11 +55,18 @@ class HttpError extends Error {
 const bad = (m) => new HttpError(400, m);
 
 /* ───────── data access ───────── */
-const EMP_SQL = `SELECT e.id, e.emp_code, e.name, e.email, e.designation, e.role, e.is_active,
+const EMP_SQL = `SELECT e.id, e.emp_code, e.name, e.email, e.designation, e.role, e.roles, e.is_active,
   e.team_id, t.name AS team, e.manager_id, m.emp_code AS mgr, e.phone, e.must_change_password
   FROM employees e LEFT JOIN teams t ON t.id = e.team_id LEFT JOIN employees m ON m.id = e.manager_id`;
+// Leave balances / allowances are not tracked for now. Flip to true to enforce them again.
+const ACCOUNTING = false;
+const ROLE_ORDER = ['admin', 'manager', 'employee'];
+const rolesOf = (r) => String((r && (r.roles || r.role)) || 'employee').split(',').map((x) => x.trim()).filter(Boolean);
+const hasRole = (r, x) => rolesOf(r).includes(x);
+const primaryRole = (roles) => ROLE_ORDER.find((x) => roles.includes(x)) || 'employee';
+const quotaRoleOf = (r) => (hasRole(r, 'manager') ? 'manager' : 'employee');   // which allowance column applies
 const empShape = (r) => ({
-  id: r.emp_code, name: r.name, email: r.email, desig: r.designation || '', role: r.role,
+  id: r.emp_code, name: r.name, email: r.email, desig: r.designation || '', role: r.role, roles: rolesOf(r),
   team: r.team || '', mgr: r.mgr || null, active: !!r.is_active, phone: r.phone || '',
 });
 async function allEmployees(db) { return (await db.prepare(EMP_SQL + ' ORDER BY e.id').all()).results; }
@@ -85,8 +92,8 @@ async function quotaFor(db, role, type) {
 async function usedAndPending(db, empId, type, year) {
   const r = await db.prepare(
     `SELECT COALESCE(SUM(CASE WHEN status='Approved' AND start_date LIKE ? THEN days END),0) AS used,
-            COALESCE(SUM(CASE WHEN status='Pending' THEN days END),0) AS pend
-     FROM requests WHERE employee_id = ? AND kind='leave' AND leave_type = ?`).bind(year + '%', empId, type).first();
+            COALESCE(SUM(CASE WHEN status='Pending' AND start_date LIKE ? THEN days END),0) AS pend
+     FROM requests WHERE employee_id = ? AND kind='leave' AND leave_type = ?`).bind(year + '%', year + '%', empId, type).first();
   return r;
 }
 
@@ -97,10 +104,14 @@ app.use('/api/*', async (c, next) => {
     if (!ct.includes('application/json')) return c.json({ error: 'JSON required' }, 415);
   }
   c.header('Cache-Control', 'no-store');
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'same-origin');
   await next();
 });
 app.onError((err, c) => {
   if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
+  if (err instanceof SyntaxError) return c.json({ error: 'That request was not valid.' }, 400);
   console.error(err);
   return c.json({ error: 'Something went wrong. Please try again.' }, 500);
 });
@@ -110,7 +121,7 @@ async function loadUser(c) {
   const token = getCookie(c, COOKIE);
   if (!token) return null;
   const row = await c.env.DB.prepare(
-    `SELECT e.id, e.emp_code, e.name, e.email, e.role, e.is_active, e.must_change_password, s.expires_at
+    `SELECT e.id, e.emp_code, e.name, e.email, e.role, e.roles, e.is_active, e.must_change_password, s.expires_at
      FROM sessions s JOIN employees e ON e.id = s.employee_id WHERE s.token_hash = ?`).bind(await sha256Hex(token)).first();
   if (!row || !row.is_active || row.expires_at < nowSql()) return null;
   return row;
@@ -127,7 +138,7 @@ const requireUser = async (c, next) => {
   await next();
 };
 const requireRole = (...roles) => async (c, next) => {
-  if (!roles.includes(c.get('user').role)) return c.json({ error: 'You do not have access to this.' }, 403);
+  if (!roles.some((r) => hasRole(c.get('user'), r))) return c.json({ error: 'You do not have access to this.' }, 403);
   await next();
 };
 async function startSession(c, empId) {
@@ -143,9 +154,76 @@ async function startSession(c, empId) {
 }
 
 /* ───────── auth ───────── */
+const emailEnabled = (env) => !!(env.RESEND_API_KEY && env.MAIL_FROM);
 app.get('/api/auth/status', async (c) => {
   const n = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM employees').first();
-  return c.json({ needsSetup: n.n === 0 });
+  return c.json({ needsSetup: n.n === 0, emailEnabled: emailEnabled(c.env) });
+});
+
+/* ───────── forgot / reset password ───────── */
+function tempPassword() {
+  const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return [...crypto.getRandomValues(new Uint32Array(14))].map((x) => a[x % a.length]).join('');
+}
+async function sendResetEmail(env, to, name, link) {
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        from: env.MAIL_FROM, to: [to], subject: 'Reset your LeaveDesk password',
+        text: `Hi ${name},\n\nUse this link to choose a new password (valid for 30 minutes):\n${link}\n\nIf you didn't ask for this, you can ignore this email and your password will stay the same.`,
+        html: `<p>Hi ${name.replace(/[<>&]/g, '')},</p><p><a href="${link}">Choose a new password</a> (valid for 30 minutes).</p><p>If you didn't ask for this, you can ignore this email and your password will stay the same.</p>`,
+      }),
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, detail: `${res.status} ${(await res.text()).slice(0, 180)}` };
+  } catch (e) { return { ok: false, detail: 'network error' }; }
+}
+const NOT_ADMIN_MSG = 'You are not an administrator. Please contact your administrator to change your password.';
+app.post('/api/auth/forgot', async (c) => {
+  const db = c.env.DB, b = await c.req.json();
+  const email = str(b.email, 200).toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw bad('Enter a valid email address.');
+  const emp = await db.prepare('SELECT id, name, email, roles, role, is_active FROM employees WHERE email = ?').bind(email).first();
+  // only administrators reset by email; everyone else (and unknown addresses) is told to contact their administrator
+  if (!emp || !emp.is_active || !hasRole(emp, 'admin')) throw new HttpError(403, NOT_ADMIN_MSG);
+  if (!emailEnabled(c.env)) throw new HttpError(503, 'Reset by email isn’t set up yet, so a link can’t be sent. Please contact the person who manages this system.');
+  const recent = await db.prepare(
+    `SELECT COUNT(*) AS n FROM reset_requests WHERE employee_id = ? AND created_at > datetime('now','-1 hour')`).bind(emp.id).first();
+  if (recent.n >= 3) throw new HttpError(429, 'Too many reset requests. Please wait a while and check your inbox for the earlier link.');
+  const token = hex(crypto.getRandomValues(new Uint8Array(32)));
+  const link = `${new URL(c.req.url).origin}/?reset=${token}`;
+  const sent = await sendResetEmail(c.env, emp.email, emp.name, link);
+  const exp = new Date(Date.now() + 30 * 60e3).toISOString().replace('T', ' ').slice(0, 19);
+  const stmts = [
+    db.prepare('DELETE FROM password_resets WHERE employee_id = ? AND used_at IS NULL').bind(emp.id),
+    db.prepare('INSERT INTO password_resets (employee_id, token_hash, expires_at) VALUES (?, ?, ?)').bind(emp.id, await sha256Hex(token), exp),
+    db.prepare(`INSERT INTO reset_requests (employee_id, emailed, status) VALUES (?, ?, 'Open')`).bind(emp.id, sent.ok ? 1 : 0),
+  ];
+  if (!sent.ok) stmts.push(logStmt(db, null, 'Reset email failed', `${emp.email}: ${sent.detail}`));
+  await db.batch(stmts);
+  const answer = { ok: true };
+  if (c.env.DEV_RETURN_RESET_TOKEN === '1') answer.devToken = token;   // local testing only
+  return c.json(answer);
+});
+// opened from the emailed link: the person chooses their new password
+app.post('/api/auth/reset', async (c) => {
+  const db = c.env.DB, b = await c.req.json();
+  const token = str(b.token, 200), password = String(b.password || '');
+  if (password.length < 8) throw bad('Password must be at least 8 characters.');
+  const row = await db.prepare(
+    `SELECT id, employee_id FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?`
+  ).bind(await sha256Hex(token), nowSql()).first();
+  if (!row) throw bad('This link is invalid or has expired. Please use Forgot password to get a new one.');
+  await db.batch([
+    db.prepare('UPDATE employees SET password_hash = ?, must_change_password = 0 WHERE id = ?').bind(await hashPassword(password), row.employee_id),
+    db.prepare('UPDATE password_resets SET used_at = ? WHERE id = ?').bind(nowSql(), row.id),
+    db.prepare('DELETE FROM sessions WHERE employee_id = ?').bind(row.employee_id),
+    db.prepare(`UPDATE reset_requests SET status = 'Done', handled_at = ? WHERE employee_id = ? AND status = 'Open'`).bind(nowSql(), row.employee_id),
+    logStmt(db, row.employee_id, 'Password reset by email link', 'Forgot password'),
+  ]);
+  return c.json({ ok: true });
 });
 
 app.post('/api/auth/setup', async (c) => {
@@ -159,20 +237,43 @@ app.post('/api/auth/setup', async (c) => {
   if (password.length < 8) throw bad('Password must be at least 8 characters.');
   const hash = await hashPassword(password);
   const r = await db.prepare(
-    `INSERT INTO employees (emp_code, name, email, designation, role, password_hash) VALUES ('EMP-1001', ?, ?, 'Administrator', 'admin', ?)`
+    `INSERT INTO employees (emp_code, name, email, designation, role, roles, password_hash) VALUES ('EMP-1001', ?, ?, 'Administrator', 'admin', 'admin,manager,employee', ?)`
   ).bind(name, email, hash).run();
   await db.batch([logStmt(db, r.meta.last_row_id, 'System set up', `First admin ${name}`)]);
   await startSession(c, r.meta.last_row_id);
   return c.json({ ok: true });
 });
 
+const LOCK_MINUTES = 15;
+async function recordFailure(db, keys) {
+  const now = nowSql();
+  const cutoff = new Date(Date.now() - LOCK_MINUTES * 60e3).toISOString().replace('T', ' ').slice(0, 19);
+  const lockUntil = new Date(Date.now() + LOCK_MINUTES * 60e3).toISOString().replace('T', ' ').slice(0, 19);
+  await db.batch(keys.map(([key, max]) => db.prepare(
+    `INSERT INTO login_attempts (key, fails, window_start, locked_until) VALUES (?, 1, ?, NULL)
+     ON CONFLICT(key) DO UPDATE SET
+       fails = CASE WHEN window_start < ? THEN 1 ELSE fails + 1 END,
+       locked_until = CASE WHEN (CASE WHEN window_start < ? THEN 1 ELSE fails + 1 END) >= ? THEN ? ELSE locked_until END,
+       window_start = CASE WHEN window_start < ? THEN ? ELSE window_start END`
+  ).bind(key, now, cutoff, cutoff, max, lockUntil, cutoff, now)));
+}
 app.post('/api/auth/login', async (c) => {
-  const b = await c.req.json();
+  const db = c.env.DB, b = await c.req.json();
   const email = str(b.email, 200).toLowerCase(), password = String(b.password || '');
-  const row = await c.env.DB.prepare('SELECT id, password_hash, is_active FROM employees WHERE email = ?').bind(email).first();
+  const ip = c.req.header('cf-connecting-ip') || 'unknown';
+  const keys = [[`p:${email}|${ip}`, 5], [`i:${ip}`, 30], [`e:${email}`, 40]];
+  const locked = await db.prepare(
+    `SELECT 1 FROM login_attempts WHERE key IN (?, ?, ?) AND locked_until IS NOT NULL AND locked_until > ? LIMIT 1`
+  ).bind(...keys.map((k) => k[0]), nowSql()).first();
+  if (locked) throw new HttpError(429, `Too many sign-in attempts. Please wait ${LOCK_MINUTES} minutes and try again.`);
+  const row = await db.prepare('SELECT id, password_hash, is_active FROM employees WHERE email = ?').bind(email).first();
   // always do the hash work so timing does not reveal whether the email exists
   const ok = row ? await verifyPassword(password, row.password_hash) : (await hashPassword(password), false);
-  if (!row || !ok || !row.is_active) throw new HttpError(401, 'Incorrect email or password.');
+  if (!row || !ok || !row.is_active) {
+    await recordFailure(db, keys);
+    throw new HttpError(401, 'Incorrect email or password.');
+  }
+  await db.batch([db.prepare('DELETE FROM login_attempts WHERE key IN (?, ?)').bind(keys[0][0], keys[2][0])]);
   await startSession(c, row.id);
   return c.json({ ok: true });
 });
@@ -243,12 +344,12 @@ app.get('/api/state', requireUser, async (c) => {
       manager: (qRows.find((q) => q.leave_type === t.code && q.role === 'manager') || {}).quota || 0,
     },
   }));
-  const out = { me: { ...empShape(meRow), mustChange: !!meRow.must_change_password }, leaveTypes, teams: [], teamLeads: {}, emps: [], holidays, reqs: [], att: {}, imports: [], audit: [] };
+  const out = { me: { ...empShape(meRow), mustChange: !!meRow.must_change_password }, leaveTypes, accounting: ACCOUNTING, teams: [], teamLeads: {}, emps: [], holidays, reqs: [], att: {}, imports: [], audit: [] };
 
   const REQ_SQL = `SELECT r.*, e.emp_code AS emp, a.emp_code AS appr FROM requests r
     JOIN employees e ON e.id = r.employee_id JOIN employees a ON a.id = r.approver_id`;
-  let reqRows;
-  if (u.role === 'admin') {
+  let reqRows, reqWhere = '1=1', reqBinds = [];
+  if (hasRole(u, 'admin')) {
     out.emps = rows.map(empShape);
     const teams = (await db.prepare('SELECT t.name, l.emp_code AS lead FROM teams t LEFT JOIN employees l ON l.id = t.lead_id ORDER BY t.name').all()).results;
     out.teams = teams.map((t) => t.name);
@@ -272,22 +373,25 @@ app.get('/api/state', requireUser, async (c) => {
     [meRow, ...directs].forEach((r) => keep.set(r.id, r));
     if (meRow.manager_id) { const m = rows.find((r) => r.id === meRow.manager_id); if (m) keep.set(m.id, m); }
     out.emps = [...keep.values()].map(empShape);
-    const ids = [...keep.keys()];
-    const ph = ids.map(() => '?').join(',');
+    reqWhere = `(r.employee_id = ? OR r.approver_id = ?
+      OR r.employee_id IN (SELECT id FROM employees WHERE manager_id = ?)
+      OR r.employee_id = (SELECT manager_id FROM employees WHERE id = ?))`;
+    reqBinds = [u.id, u.id, u.id, u.id];
     reqRows = (await db.prepare(
-      REQ_SQL + ` WHERE r.employee_id IN (${ph}) OR r.approver_id = ? ORDER BY r.id DESC LIMIT 1000`).bind(...ids, u.id).all()).results;
+      REQ_SQL + ` WHERE ${reqWhere} ORDER BY r.id DESC LIMIT 1000`).bind(...reqBinds).all()).results;
     if (u.role !== 'manager' || true) {
       const att = (await db.prepare('SELECT date, status, check_in, check_out, import_id FROM attendance WHERE employee_id = ? ORDER BY date DESC LIMIT 400').bind(u.id).all()).results;
       att.forEach((a) => { out.att[u.emp_code + '|' + a.date] = { s: a.status, in: a.check_in || '', out: a.check_out || '', batch: 'IMP-' + String(a.import_id || 0).padStart(4, '0') }; });
     }
   }
-  const reqIds = reqRows.map((r) => r.id);
   let hist = [];
-  if (reqIds.length) {
-    const ph = reqIds.map(() => '?').join(',');
+  if (reqRows.length) {
     hist = (await db.prepare(
       `SELECT h.request_id, h.action, h.created_at, x.name AS actor FROM request_history h
-       LEFT JOIN employees x ON x.id = h.actor_id WHERE h.request_id IN (${ph}) ORDER BY h.id`).bind(...reqIds).all()).results;
+       JOIN requests r ON r.id = h.request_id
+       LEFT JOIN employees x ON x.id = h.actor_id
+       WHERE h.request_id IN (SELECT r.id FROM requests r WHERE ${reqWhere} ORDER BY r.id DESC LIMIT ${hasRole(u, 'admin') ? 2000 : 1000})
+       ORDER BY h.id`).bind(...reqBinds).all()).results;
   }
   out.reqs = buildRequests(reqRows, hist);
   return c.json(out);
@@ -313,18 +417,18 @@ app.post('/api/requests', requireUser, async (c) => {
   let type = null;
   if (kind === 'leave') {
     type = str(b.type, 20);
-    const q = await quotaFor(db, u.role, type);
+    const q = await quotaFor(db, quotaRoleOf(u), type);
     if (!q || !q.is_active) throw bad('Choose a leave type.');
-    if (!(q.quota > 0)) throw bad('That leave type is not available to you.');
+    if (ACCOUNTING && !(q.quota > 0)) throw bad('That leave type is not available to you.');
   }
   const days = workdays(from, to, half, await holidaySet(db));
   if (days === 0) throw bad('Selected dates fall on weekends or holidays. Nothing to apply for.');
   const dup = await db.prepare(
-    `SELECT request_no, status FROM requests WHERE employee_id = ? AND kind = ? AND status IN ('Pending','Approved')
-     AND start_date <= ? AND end_date >= ? LIMIT 1`).bind(u.id, kind, to, from).first();
+    `SELECT request_no, status FROM requests WHERE employee_id = ? AND status IN ('Pending','Approved')
+     AND start_date <= ? AND end_date >= ? LIMIT 1`).bind(u.id, to, from).first();
   if (dup) throw bad(`This overlaps with your ${dup.status.toLowerCase()} request ${dup.request_no}.`);
-  if (kind === 'leave') {
-    const q = await quotaFor(db, u.role, type);
+  if (ACCOUNTING && kind === 'leave') {
+    const q = await quotaFor(db, quotaRoleOf(u), type);
     const bal = await usedAndPending(db, u.id, type, from.slice(0, 4));
     const rem = q.quota - bal.used - bal.pend;
     if (days > rem) throw bad(`Only ${rem} ${type} day(s) available.`);
@@ -366,9 +470,9 @@ async function decide(c, status, reason) {
   const r = await loadRequest(db, c.req.param('no'));
   if (r.approver_id !== u.id) throw new HttpError(403, 'You are not the approver for this request.');
   if (r.status !== 'Pending') throw new HttpError(409, `Request is already ${r.status.toLowerCase()}.`);
-  if (status === 'Approved' && r.kind === 'leave') {
-    const who = await db.prepare('SELECT role FROM employees WHERE id = ?').bind(r.employee_id).first();
-    const q = await quotaFor(db, who.role, r.leave_type);
+  if (ACCOUNTING && status === 'Approved' && r.kind === 'leave') {
+    const who = await db.prepare('SELECT role, roles FROM employees WHERE id = ?').bind(r.employee_id).first();
+    const q = await quotaFor(db, quotaRoleOf(who), r.leave_type);
     const bal = await usedAndPending(db, r.employee_id, r.leave_type, r.start_date.slice(0, 4));
     // pending includes this request itself, so compare used + this request against quota
     if (bal.used + r.days > q.quota) throw bad('The employee does not have enough balance for this request.');
@@ -384,8 +488,8 @@ async function decide(c, status, reason) {
   ]);
   return c.json({ ok: true });
 }
-app.post('/api/requests/:no/approve', requireUser, requireRole('manager', 'admin'), (c) => decide(c, 'Approved', null));
-app.post('/api/requests/:no/reject', requireUser, requireRole('manager', 'admin'), async (c) => {
+app.post('/api/requests/:no/approve', requireUser, requireRole('manager'), (c) => decide(c, 'Approved', null));
+app.post('/api/requests/:no/reject', requireUser, requireRole('manager'), async (c) => {
   const b = await c.req.json();
   const reason = str(b.reason, 300);
   if (!reason) throw bad('A reason is required to reject.');
@@ -403,26 +507,29 @@ async function resolveTeamId(db, name) {
 }
 async function validateEmployee(db, b, selfId) {
   const name = str(b.name, 100), email = str(b.email, 200).toLowerCase();
-  const role = str(b.role, 20), desig = str(b.desig, 100);
+  const desig = str(b.desig, 100);
+  const given = Array.isArray(b.roles) ? b.roles : (b.role ? [b.role] : []);
+  const roles = ROLE_ORDER.filter((x) => given.includes(x));
+  if (!roles.length) throw bad('Choose at least one role.');
+  const role = primaryRole(roles);
   if (!name) throw bad('Name is required.');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw bad('Enter a valid email address.');
-  if (!ROLES.includes(role)) throw bad('Choose a valid role.');
   const dupe = await db.prepare('SELECT id FROM employees WHERE email = ? AND id <> ?').bind(email, selfId || 0).first();
   if (dupe) throw bad('That email is already used by another employee.');
   const teamId = await resolveTeamId(db, str(b.team, 100));
   let managerId = null;
   if (b.mgr) {
     const m = await empByCode(db, str(b.mgr, 20));
-    if (!m || !m.is_active || !['manager', 'admin'].includes(m.role)) throw bad('Choose an active manager or admin as reporting manager.');
+    if (!m || !m.is_active || !hasRole(m, 'manager')) throw bad('Choose an active person with the Manager role as reporting manager.');
     if (selfId) {
       if (m.id === selfId) throw bad('A person can’t report to themselves.');
       if (descendantsOf(await allEmployees(db), selfId).has(m.id)) throw bad('That would create a circular reporting line.');
     }
     managerId = m.id;
   }
-  if (role !== 'admin' && !managerId) throw bad('Managers and employees need a reporting manager.');
+  if (!roles.includes('admin') && !managerId) throw bad('Everyone except administrators needs a reporting manager.');
   const phone = 'phone' in b ? normPhone(b.phone) : undefined;
-  return { name, email, role, desig, teamId, managerId, phone, active: b.active === false ? 0 : 1 };
+  return { name, email, role, roles, desig, teamId, managerId, phone, active: b.active === false ? 0 : 1 };
 }
 
 app.post('/api/employees', ...admin, async (c) => {
@@ -438,9 +545,9 @@ app.post('/api/employees', ...admin, async (c) => {
   if (!/^EMP-\d+$/.test(code)) throw bad('Employee ID must look like EMP-1234.');
   if (await empByCode(db, code)) throw bad('That employee ID already exists.');
   await db.batch([
-    db.prepare(`INSERT INTO employees (emp_code, name, email, designation, team_id, manager_id, role, password_hash, is_active, phone, must_change_password)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`).bind(code, v.name, v.email, v.desig, v.teamId, v.managerId, v.role, await hashPassword(password), v.active, v.phone || null),
-    logStmt(db, u.id, 'Employee added', `${v.name} (${code}) · ${v.role}`),
+    db.prepare(`INSERT INTO employees (emp_code, name, email, designation, team_id, manager_id, role, roles, password_hash, is_active, phone, must_change_password)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`).bind(code, v.name, v.email, v.desig, v.teamId, v.managerId, v.role, v.roles.join(','), await hashPassword(password), v.active, v.phone || null),
+    logStmt(db, u.id, 'Employee added', `${v.name} (${code}) · ${v.roles.join(', ')}`),
   ]);
   return c.json({ ok: true, id: code });
 });
@@ -450,10 +557,10 @@ app.put('/api/employees/:code', ...admin, async (c) => {
   const cur = await empByCode(db, c.req.param('code'));
   if (!cur) throw new HttpError(404, 'Employee not found.');
   const v = await validateEmployee(db, b, cur.id);
-  if (cur.id === u.id && (v.role !== 'admin' || !v.active)) throw bad('You can’t remove your own admin access or deactivate yourself.');
+  if (cur.id === u.id && (!v.roles.includes('admin') || !v.active)) throw bad('You can’t remove your own admin access or deactivate yourself.');
   const stmts = [
-    db.prepare(`UPDATE employees SET name=?, email=?, designation=?, team_id=?, manager_id=?, role=?, is_active=?, phone=? WHERE id=?`)
-      .bind(v.name, v.email, v.desig, v.teamId, v.managerId, v.role, v.active, v.phone === undefined ? cur.phone : (v.phone || null), cur.id),
+    db.prepare(`UPDATE employees SET name=?, email=?, designation=?, team_id=?, manager_id=?, role=?, roles=?, is_active=?, phone=? WHERE id=?`)
+      .bind(v.name, v.email, v.desig, v.teamId, v.managerId, v.role, v.roles.join(','), v.active, v.phone === undefined ? cur.phone : (v.phone || null), cur.id),
     logStmt(db, u.id, 'Employee updated', `${v.name} (${cur.emp_code})`),
   ];
   const pw = String(b.password || '');
@@ -463,6 +570,15 @@ app.put('/api/employees/:code', ...admin, async (c) => {
     stmts.push(db.prepare('UPDATE employees SET password_hash = ?, must_change_password = 1 WHERE id = ?').bind(await hashPassword(pw), cur.id));
   }
   if (!v.active || pw) stmts.push(db.prepare('DELETE FROM sessions WHERE employee_id = ?').bind(cur.id));
+  if ((!v.active || !v.roles.includes('manager')) && hasRole(cur, 'manager')) {
+    // they can no longer approve: hand their pending approvals to their own manager, or else another admin
+    const fallback = await db.prepare(`SELECT id FROM employees WHERE role = 'admin' AND is_active = 1 AND id <> ? ORDER BY id LIMIT 1`).bind(cur.id).first();
+    const newApprover = v.managerId || (fallback && fallback.id) || null;
+    if (newApprover) {
+      stmts.push(db.prepare(`UPDATE requests SET approver_id = ? WHERE approver_id = ? AND status = 'Pending' AND employee_id <> ?`).bind(newApprover, cur.id, newApprover));
+      stmts.push(logStmt(db, u.id, 'Pending approvals reassigned', `${cur.name}'s pending requests moved to another approver`));
+    }
+  }
   // a team lead who leaves their team (or is deactivated) is no longer lead
   stmts.push(db.prepare('UPDATE teams SET lead_id = NULL WHERE lead_id = ? AND (id <> COALESCE(?, -1) OR ? = 0)').bind(cur.id, v.teamId, v.active));
   await db.batch(stmts);
@@ -480,26 +596,24 @@ app.post('/api/employees/bulk', ...admin, async (c) => {
   let mgr = null;
   if ('mgr' in b) {
     mgr = byCode.get(str(b.mgr, 20));
-    if (!mgr || !mgr.is_active || !['manager', 'admin'].includes(mgr.role)) throw bad('Choose an active manager or admin.');
+    if (!mgr || !mgr.is_active || !hasRole(mgr, 'manager')) throw bad('Choose an active person with the Manager role.');
   }
   const stmts = [], skipped = [], moved = [];
-  for (const code of ids) {
+  for (const code of [...new Set(ids)]) {
     const e = byCode.get(code);
     if (!e) continue;
+    if ('mgr' in b && (e.id === mgr.id || descendantsOf(all, e.id).has(mgr.id))) { skipped.push(e.name); continue; }
     if ('team' in b) {
       stmts.push(db.prepare('UPDATE employees SET team_id = ? WHERE id = ?').bind(teamId, e.id));
       stmts.push(db.prepare('UPDATE teams SET lead_id = NULL WHERE lead_id = ? AND id <> COALESCE(?, -1)').bind(e.id, teamId));
     }
-    if ('mgr' in b) {
-      if (e.id === mgr.id || descendantsOf(all, e.id).has(mgr.id)) { skipped.push(e.name); continue; }
-      stmts.push(db.prepare('UPDATE employees SET manager_id = ? WHERE id = ?').bind(mgr.id, e.id));
-    }
+    if ('mgr' in b) stmts.push(db.prepare('UPDATE employees SET manager_id = ? WHERE id = ?').bind(mgr.id, e.id));
     moved.push(e.name);
   }
   if (moved.length) {
     stmts.push(logStmt(db, u.id, 'Bulk update',
-      `${moved.join(', ')}${'team' in b ? ' → team ' + (b.team || 'none') : ''}${'mgr' in b ? ' → manager ' + mgr.name : ''}`));
-    await db.batch(stmts);
+      `${moved.slice(0, 20).join(', ')}${moved.length > 20 ? ` and ${moved.length - 20} more` : ''}${'team' in b ? ' → team ' + (b.team || 'none') : ''}${'mgr' in b ? ' → manager ' + mgr.name : ''}`));
+    for (let i = 0; i < stmts.length; i += 80) await db.batch(stmts.slice(i, i + 80));   // D1 allows at most 100 statements per batch
   }
   return c.json({ ok: true, updated: moved.length, skipped });
 });

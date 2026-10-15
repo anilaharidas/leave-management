@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -225,10 +225,13 @@ nav a.vlink{display:none}
 </div>
 <script>
 /* =============== API client (talks to the Cloudflare Worker + D1) =============== */
+let ACCOUNTING=false;   // leave balances are not shown or enforced unless the server turns this on
 let LEAVE_TYPES={};   // { code: {label, active, quotas:{employee,manager}} } – set from the server
-const quotaFor=(role,type)=>Number(((LEAVE_TYPES[type]||{}).quotas||{})[role==='employee'?'employee':'manager'])||0;
-const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[]});
-let DB=blankDB(), ME=null, NEEDS_SETUP=false, BOOTING=true;
+const quotaFor=(who,type)=>{const r=typeof who==='string'?who:(hasRole(who,'manager')?'manager':'employee');return Number(((LEAVE_TYPES[type]||{}).quotas||{})[r==='employee'?'employee':'manager'])||0};
+const blankDB=()=>({teams:[],emps:[],teamLeads:{},holidays:[],reqs:[],att:{},imports:[],audit:[],resets:[]});
+let DB=blankDB(), ME=null, NEEDS_SETUP=false, EMAIL_ENABLED=false, BOOTING=true;
+let gateMode=new URLSearchParams(location.search).get('reset')?'reset':'login';
+let gateMsg='';
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 async function api(method,url,body){
   let r;
@@ -237,7 +240,7 @@ async function api(method,url,body){
   let j={};try{j=await r.json()}catch(e){}
   if(!r.ok){
     const err=new Error(j.error||'Request failed ('+r.status+')');err.status=r.status;
-    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login')goLogin()},0)}
+    if(r.status===401&&!url.startsWith('/api/auth/')){ME=null;DB=blankDB();setTimeout(()=>{if(typeof PAGE!=='undefined'&&PAGE!=='login'&&PAGE!=='forgot')goLogin()},0)}
     throw err;
   }
   return j;
@@ -246,11 +249,19 @@ async function loadState(){
   try{
     const s=await api('GET','/api/state');
     ME=s.me;
+    ACCOUNTING=!!s.accounting;
+    // the server stores UTC; show people their own local time
+    const pad=n=>String(n).padStart(2,'0');
+    const local=t=>{if(typeof t!=='string'||t.length<16)return t;const d=new Date(t.slice(0,10)+'T'+t.slice(11,16)+':00Z');
+      return isNaN(d)?t:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+    (s.reqs||[]).forEach(r=>{r.created=local(r.created);(r.hist||[]).forEach(h=>{h[1]=local(h[1])})});
+    (s.audit||[]).forEach(a=>{a.t=local(a.t)});
+    (s.imports||[]).forEach(i=>{i.at=local(i.at)});
     LEAVE_TYPES=Object.fromEntries((s.leaveTypes||[]).map(t=>[t.code,{label:t.name,active:t.active,quotas:t.quotas}]));
-    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[]};
+    DB={teams:s.teams||[],emps:s.emps||[],teamLeads:s.teamLeads||{},holidays:s.holidays||[],reqs:s.reqs||[],att:s.att||{},imports:s.imports||[],audit:s.audit||[],resets:s.resets||[]};
     return true;
   }catch(e){
-    if(e.status===401){ME=null;DB=blankDB();try{NEEDS_SETUP=(await api('GET','/api/auth/status')).needsSetup}catch(_){}return false}
+    if(e.status===401){ME=null;DB=blankDB();try{const st=await api('GET','/api/auth/status');NEEDS_SETUP=st.needsSetup;EMAIL_ENABLED=!!st.emailEnabled}catch(_){}return false}
     throw e;
   }
 }
@@ -269,12 +280,34 @@ function loginGate(title,sub,note){
       <label class="f">Password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="s_pw" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitSetup()">
       <div id="g_err"></div><button class="btn" onclick="submitSetup()">Create administrator</button></div></div>`;
   }
+  if(gateMode==='reset')return `<div class="gate"><div class="card">${logo}<h1 style="font-size:24px">Choose a new password</h1>
+    <p style="color:var(--mute);font-size:14px;margin-top:6px">Enter the password you want to use from now on.</p>
+    <label class="f">New password <small style="color:var(--mute)">(min 8 characters)</small></label><input class="in" type="password" id="r_new" autocomplete="new-password">
+    <label class="f">Confirm new password</label><input class="in" type="password" id="r_new2" autocomplete="new-password" onkeydown="if(event.key==='Enter')submitReset()">
+    <div id="g_err"></div><button class="btn" id="r_btn" onclick="submitReset()">Save new password</button>
+    <button class="btn ghost" style="color:var(--mute)" onclick="backToLogin()">Back to sign in</button></div></div>`;
   return `<div class="gate"><div class="card">${logo}<h1 style="font-size:26px">${title}</h1>
     ${sub?`<p style="color:var(--mute);font-size:14px;margin-top:6px">${sub}</p>`:''}
     ${note?`<div class="lock"><svg viewBox="0 0 24 24" style="width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span>${note}</span></div>`:''}
     <label class="f">Email</label><input class="in" type="email" id="g_email" autocomplete="username" onkeydown="if(event.key==='Enter')$('#g_pw').focus()">
     <label class="f">Password</label><input class="in" type="password" id="g_pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitLogin()">
-    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button></div></div>`;
+    ${gateMsg?`<div style="background:var(--green-l);color:var(--green);padding:11px 14px;border-radius:12px;font-size:13px;font-weight:500;margin-top:14px">${gateMsg}</div>`:''}
+    <div id="g_err"></div><button class="btn" id="g_btn" onclick="submitLogin()">Sign in</button>
+    <p style="text-align:center;margin-top:14px"><a href="/forgot" style="color:var(--brand);font-weight:600;font-size:14px;text-decoration:none" >Forgot password?</a></p></div></div>`;
+}
+function backToLogin(){gateMode='login';gateMsg='';try{history.replaceState(null,'','/')}catch(e){}render()}
+async function submitReset(){
+  const n1=document.getElementById('r_new').value,n2=document.getElementById('r_new2').value;
+  if(n1.length<8)return gateError('Password must be at least 8 characters.');
+  if(n1!==n2)return gateError('The two passwords don’t match.');
+  const token=new URLSearchParams(location.search).get('reset')||'';
+  const b=document.getElementById('r_btn');b.disabled=true;
+  try{
+    await api('POST','/api/auth/reset',{token,password:n1});
+    gateMode='login';gateMsg='Password updated. Sign in with your new password.';
+    try{history.replaceState(null,'','/')}catch(e){}
+    render();
+  }catch(e){gateError(e.message);b.disabled=false}
 }
 function gateError(m){const e=document.getElementById('g_err');if(e)e.innerHTML=`<div class="err">${String(m).replace(/</g,'&lt;')}</div>`}
 async function submitLogin(){
@@ -311,7 +344,10 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)softRefres
 setInterval(softRefresh,60000);
 /* ---- one login page, role decides the app ---- */
 const HOME={admin:'/admin',manager:'/manager',employee:'/employee'};
-const ACCESS={admin:['admin'],manager:['manager','admin'],employee:['employee','manager','admin']};
+const ACCESS={admin:['admin'],manager:['manager'],employee:['employee']};   // role needed to open each app
+const hasRole=(p,r)=>!!p&&(p.roles||[p.role]).includes(r);
+const canOpen=(p,k)=>!!p&&!!ACCESS[k]&&ACCESS[k].some(r=>hasRole(p,r));
+const homeFor=p=>HOME[hasRole(p,'admin')?'admin':hasRole(p,'manager')?'manager':'employee'];
 const APP_PATHS=['/admin','/manager','/employee'];
 function appKey(path){return path.split('#')[0].split('?')[0].replace(/\.html$/,'').replace(/^\/+/,'')}
 function goLogin(){location.replace('/?next='+encodeURIComponent(location.pathname+location.hash))}
@@ -319,26 +355,27 @@ function nextTarget(){
   const n=new URLSearchParams(location.search).get('next')||'';
   if(!n.startsWith('/')||n.startsWith('//'))return null;
   const k=appKey(n);
-  if(!ACCESS[k]||!ME||!ACCESS[k].includes(ME.role))return null;
+  if(!ACCESS[k]||!ME||!canOpen(ME,k))return null;
   return '/'+k+(n.includes('#')?n.slice(n.indexOf('#')):'');
 }
 function viewLinks(){
   if(!ME)return [];
   const all=[['admin','Admin','/admin'],['manager','Approvals','/manager'],['employee','My leave','/employee']];
-  return all.filter(([k])=>k!==PAGE&&ACCESS[k].includes(ME.role));
+  return all.filter(([k])=>k!==PAGE&&canOpen(ME,k));
 }
 const viewNav=()=>viewLinks().map(([k,l,h])=>`<a class="vlink" href="${h}">⇄ ${l}</a>`).join('');
-function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||HOME[ME.role])}
+function onAuthed(){if(ME&&ME.mustChange){render();return}location.replace(nextTarget()||homeFor(ME))}
 async function boot(){
   try{await loadState()}catch(e){}
   BOOTING=false;
+  if(PAGE==='forgot'){render();return}
   if(PAGE==='login'){
-    if(ME){onAuthed();return}
+    if(ME&&gateMode!=='reset'){onAuthed();return}
     render();return;
   }
   if(!ME){goLogin();return}
   if(ME.mustChange){location.replace('/');return}
-  if(!ACCESS[PAGE].includes(ME.role)){location.replace(HOME[ME.role]);return}
+  if(!canOpen(ME,PAGE)){location.replace(homeFor(ME));return}
   render();
 }
 

@@ -7,6 +7,7 @@
     "directory": "./dist",
     "run_worker_first": ["/api/*"]
   },
+  "vars": { "MAIL_FROM": "" },
   "d1_databases": [
     {
       "binding": "DB",
