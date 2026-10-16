@@ -647,15 +647,17 @@ function vCalendar(){
 }
 
 /* attendance comes only from HR’s CSV imports; leave/WFH approvals stay separate */
+// the biometric device doesn't know our holidays, so "absent" on a company holiday is shown as a holiday
+const effective=(ds,a)=>(a&&a.s==='absent'&&holMap()[ds])?{s:'holiday'}:a;
 function attFor(ds){
-  const rec=DB.att[meId+'|'+ds]; if(rec)return rec;
+  const rec=DB.att[meId+'|'+ds]; if(rec)return effective(ds,rec);
   if(holMap()[ds]&&![0,6].includes(P(ds).getDay()))return {s:'holiday'};
   return null;
 }
-const ANAMES={present:'Present',late:'Late arrival',wfh:'Work from home',absent:'Absent',leave:'On leave',half_day:'Half day',holiday:'Holiday'};
-const ACOL={present:'var(--green)',late:'var(--amber)',wfh:'var(--plum)',absent:'var(--red)',leave:'var(--blue)',half_day:'var(--blue)',holiday:'var(--brand)'};
+const ANAMES={present:'Present',late:'Late arrival',wfh:'Work from home',absent:'Absent',leave:'On leave',half_day:'Half day',weekoff:'Weekly off',holiday:'Holiday'};
+const ACOL={present:'var(--green)',late:'var(--amber)',wfh:'var(--plum)',absent:'var(--red)',leave:'var(--blue)',half_day:'var(--blue)',weekoff:'var(--mute)',holiday:'var(--brand)'};
 function vAttendance(){
-  const cnt={present:0,late:0,wfh:0,absent:0};
+  const cnt={present:0,half_day:0,absent:0,weekoff:0};
   const grid=monthGrid(attMonth,(ds,i)=>{
     const a=attFor(ds), dow=P(ds).getDay(), we=dow===0||dow===6;
     if(a&&cnt[a.s]!==undefined)cnt[a.s]++;
@@ -664,11 +666,11 @@ function vAttendance(){
   if(selDay){const a=attFor(selDay);
     detail=`<div class="card"><b>${fmt(selDay,{weekday:'long',day:'numeric',month:'long'})}</b>
     ${a?`<div class="kv" style="margin-top:6px"><span>Status</span><b>${ANAMES[a.s]}</b></div>${a.in?`<div class="kv"><span>Check-in</span><b>${esc(a.in)}</b></div><div class="kv"><span>Check-out</span><b>${esc(a.out||'—')}</b></div>`:''}`:`<br><small style="color:var(--mute)">${selDay>TODAY?'Upcoming':'No record uploaded'}</small>`}</div>`}
-  const rows=Object.keys(DB.att).filter(k=>k.startsWith(meId+'|')).map(k=>[k.split('|')[1],DB.att[k]]).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6);
+  const rows=Object.keys(DB.att).filter(k=>k.startsWith(meId+'|')).map(k=>[k.split('|')[1],effective(k.split('|')[1],DB.att[k])]).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10);
   return `<header class="top"><div class="t"><small>Uploaded by HR</small><h1>My attendance</h1></div></header>
-  <div class="stats"><div class="stat"><b style="color:var(--green)">${cnt.present}</b><small>Present</small></div><div class="stat"><b style="color:var(--amber)">${cnt.late}</b><small>Late</small></div><div class="stat"><b style="color:var(--plum)">${cnt.wfh}</b><small>WFH</small></div><div class="stat"><b style="color:var(--red)">${cnt.absent}</b><small>Absent</small></div></div>
+  <div class="stats"><div class="stat"><b style="color:var(--green)">${cnt.present}</b><small>Present</small></div><div class="stat"><b style="color:var(--blue)">${cnt.half_day}</b><small>Half day</small></div><div class="stat"><b style="color:var(--red)">${cnt.absent}</b><small>Absent</small></div><div class="stat"><b style="color:var(--mute)">${cnt.weekoff}</b><small>Weekly off</small></div></div>
   <div class="cols"><div><div class="card"><div class="calhead"><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()-1,1);selDay=null;render()">${ic('left')}</button><b>${mTitle(attMonth)}</b><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()+1,1);selDay=null;render()">${ic('right')}</button></div>
-  ${grid}<div class="legend"><span style="--c:var(--green)">Present</span><span style="--c:var(--amber)">Late</span><span style="--c:var(--plum)">WFH</span><span style="--c:var(--blue)">Leave</span><span style="--c:var(--red)">Absent</span></div></div>
+  ${grid}<div class="legend"><span style="--c:var(--green)">Present</span><span style="--c:var(--blue)">Half day</span><span style="--c:var(--red)">Absent</span><span style="--c:var(--mute)">Weekly off</span><span style="--c:var(--brand)">Holiday</span></div></div>
   ${detail}</div><div>
   <div class="sec" style="margin-top:0"><h2>Recent records</h2></div>
   ${rows.length?rows.map(([ds,a])=>`<div class="card hol"><div class="d"><b>${P(ds).getDate()}</b><small>${P(ds).toLocaleDateString('en-GB',{month:'short'})}</small></div><div class="m" style="flex:1"><b>${ANAMES[a.s]||a.s}</b><small>${a.in?esc(a.in)+' → '+esc(a.out||'—'):'No check-in recorded'}</small></div></div>`).join(''):'<div class="card" style="text-align:center;color:var(--mute)">No attendance uploaded for you yet.</div>'}

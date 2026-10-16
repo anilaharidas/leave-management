@@ -535,9 +535,9 @@ let teams,emps,holidays,teamLeads,att,imports,audit;
 function bind(){teams=DB.teams;emps=DB.emps;holidays=DB.holidays;teamLeads=DB.teamLeads;att=DB.att;imports=DB.imports;audit=DB.audit}
 bind();
 function persist(){}
-const STATUSES=['present','late','absent','half_day','wfh','leave'];
-const SNAME={present:'Present',late:'Late',absent:'Absent',half_day:'Half day',wfh:'WFH',leave:'On leave'};
-const SCOL={present:'var(--green)',late:'var(--amber)',absent:'var(--red)',half_day:'var(--blue)',wfh:'var(--plum)',leave:'var(--brand)'};
+const STATUSES=['present','late','absent','half_day','wfh','leave','weekoff'];
+const SNAME={present:'Present',late:'Late',absent:'Absent',half_day:'Half day',wfh:'WFH',leave:'On leave',weekoff:'Weekly off',holiday:'Holiday'};
+const SCOL={present:'var(--green)',late:'var(--amber)',absent:'var(--red)',half_day:'var(--blue)',wfh:'var(--plum)',leave:'var(--brand)',weekoff:'var(--mute)',holiday:'var(--brand)'};
 /* =============== helpers =============== */
 const $=s=>document.querySelector(s);
 function iso(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -580,6 +580,7 @@ let curTeam=0,sel=new Set(),addSel=new Set(),addQ='';
 let empQ='',empRole='All',empTeam='All';
 let repTeam='All';
 let pend=null;          // pending CSV preview
+let pendRep=null;       // pending biometric report preview
 let browseDate=lastWorkday();
 function go(t){tab=t;closeSheet();render();$('#view').scrollTop=0}
 
@@ -901,7 +902,147 @@ function analyse(text,fileName){
   return res;
 }
 function loadText(text,name){pend=analyse(text,name);render();$('#view').scrollTo({top:0})}
-function pickFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>loadText(String(rd.result),f.name);rd.readAsText(f)}
+/* =============== biometric attendance report: read + match =============== */
+const REPORT_STATUS={'P':'present','P/2':'half_day','A':'absent','WO':'weekoff'};
+function repDate(s){const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s).trim());if(!m)return null;const d=new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));return d.getUTCFullYear()===+m[3]&&d.getUTCMonth()===+m[2]-1&&d.getUTCDate()===+m[1]?`${m[3]}-${m[2]}-${m[1]}`:null}
+const repTime=s=>{const t=String(s||'').trim();return /^([01]\d|2[0-3]):[0-5]\d$/.test(t)?t:''};
+/* rows: array of arrays of strings, exactly as in the sheet */
+function isReport(rows){return rows.slice(0,12).some(r=>String(r[0]||'').trim()==='Empcode')||rows.slice(0,3).some(r=>/periodic report/i.test(String(r[0]||'')))}
+function parseReport(rows,fileName){
+  const out={company:String((rows[1]||[])[0]||'').trim(),from:null,to:null,generated:null,people:[],problems:[]};
+  const per=/(\d{2}\/\d{2}\/\d{4})\s*To\s*(\d{2}\/\d{2}\/\d{4})/i.exec(rows.slice(0,3).map(r=>r.join(' ')).join(' '));
+  if(per){out.from=repDate(per[1]);out.to=repDate(per[2])}
+  const fm=/(\d{2})(\d{2})(\d{4})(\d{6})/.exec(String(fileName||''));       // e.g. periodicdatewise14102026134959.xls -> 14 Oct 2026
+  if(fm)out.generated=repDate(`${fm[1]}/${fm[2]}/${fm[3]}`);
+  let dept='',cur=null;
+  rows.forEach((r,i)=>{
+    const c0=String(r[0]||'').trim();
+    if(/^Dept/i.test(c0)){dept=String(r[2]||'').trim();return}
+    if(c0==='Empcode'){cur={code:String(r[1]||'').trim(),name:String(r[4]||'').replace(/\s+/g,' ').trim(),dept,days:[]};out.people.push(cur);return}
+    const iso=repDate(c0);
+    if(iso&&cur){
+      const raw=String(r[8]||'').trim(),status=REPORT_STATUS[raw];
+      if(!status){out.problems.push(`Row ${i+1}: unknown status “${raw}” for ${cur.name}`);return}
+      cur.days.push({d:iso,in:repTime(r[2]),out:repTime(r[5]),s:status});
+    }
+  });
+  return out;
+}
+/* ---- name matching: file names are full names, the app often holds first names ---- */
+const nrm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+const toks=s=>nrm(s).split(' ').filter(Boolean);
+function lev(a,b){const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);for(let j=1;j<=n;j++)d[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n]}
+function scoreName(fileName,empName){
+  const F=toks(fileName),D=toks(empName);if(!F.length||!D.length)return 0;
+  const jf=F.join(''),jd=D.join('');
+  if(jf===jd)return 98;                                   // same name (spacing/case ignored): "Arun kumar" = "Arunkumar"
+  if(D.every(t=>F.includes(t)))return 90;                 // app name is part of the file name: "Sunil" in "Sunil P"
+  if(F.every(t=>D.includes(t)))return 88;                 // file name is part of the app name
+  if(jd.length>=4&&jf.startsWith(jd))return 80;           // "Yadhu" -> "Yadhukrishna"
+  if(jf.length>=4&&jd.startsWith(jf))return 78;
+  if(F[0].length>=5&&D[0].length>=5&&lev(F[0],D[0])<=1)return 60;   // "Muhammad" ~ "Muhammed" (needs a human to confirm)
+  return 0;
+}
+/* people: from parseReport; emps: [{id,name,active,bio}], returns one suggestion per person */
+function suggestMatches(people,emps){
+  const act=emps.filter(e=>e.active);
+  return people.map(p=>{
+    const saved=act.find(e=>e.bio&&e.bio===p.code);
+    if(saved)return {emp:saved.id,how:'Saved',score:100};
+    const rank=act.map(e=>({e,s:scoreName(p.name,e.name)})).filter(x=>x.s>0).sort((a,b)=>b.s-a.s);
+    if(!rank.length)return {emp:'',how:'No match',score:0};
+    const top=rank[0],tie=rank.filter(x=>x.s===top.s).length>1;
+    if(tie)return {emp:'',how:'Choose',score:top.s};
+    return {emp:top.e.id,how:top.s>=98?'Exact':top.s>=80?'Likely':'Check',score:top.s};
+  });
+}
+
+/* ---- upload + review UI for the biometric report ---- */
+function csvRows(text){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
+    else if(ch==='"')q=true;
+    else if(ch===','){row.push(cur);cur=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cur);rows.push(row);row=[];cur=''}
+    else cur+=ch}
+  if(cur!==''||row.length){row.push(cur);rows.push(row)}
+  return rows;
+}
+function loadXlsxLib(){
+  if(window.XLSX)return Promise.resolve();
+  return new Promise((ok,fail)=>{const s=document.createElement('script');s.src='/vendor/xlsx.full.min.js';s.onload=ok;s.onerror=()=>fail(new Error('Couldn’t load the spreadsheet reader. Check your connection.'));document.head.appendChild(s)});
+}
+async function pickFile(f){
+  if(!f)return;
+  const ext=(f.name.split('.').pop()||'').toLowerCase();
+  try{
+    if(ext==='xls'||ext==='xlsx'){
+      await loadXlsxLib();
+      const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+      return openReport(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''}),f.name);
+    }
+    const text=await f.text();
+    if(/Empcode/.test(text.slice(0,3000))&&/INTime/i.test(text.slice(0,3000)))return openReport(csvRows(text),f.name);
+    loadText(text,f.name);
+  }catch(e){toast(e.message||'Couldn’t read that file.')}
+}
+function openReport(rows,name){
+  if(!isReport(rows)){toast('This doesn’t look like the attendance report (the “Weekly Periodic Report” layout).');return}
+  const rep=parseReport(rows,name);
+  if(!rep.people.length){toast('No people were found in the report.');return}
+  const sug=suggestMatches(rep.people,emps.map(e=>({id:e.id,name:e.name,active:e.active,bio:e.bio||''})));
+  let cutoff=rep.generated||TODAY;if(rep.to&&cutoff>rep.to)cutoff=rep.to;if(cutoff>TODAY)cutoff=TODAY;
+  pendRep={file:name,rep,match:sug.map(x=>x.emp),how:sug.map(x=>x.how),cutoff};
+  render();$('#view').scrollTo({top:0});
+}
+function setMatch(i,val){pendRep.match[i]=val;pendRep.how[i]=val?'Chosen':'No match';render()}
+function setCutoff(v){if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return;pendRep.cutoff=v;render()}
+function repSummary(){
+  const r=pendRep,used={};r.match.forEach(m=>{if(m)used[m]=(used[m]||0)+1});
+  const dups=Object.keys(used).filter(k=>used[k]>1);
+  let matched=0,records=0,after=0;
+  r.rep.people.forEach((p,i)=>{if(!r.match[i])return;matched++;p.days.forEach(d=>{d.d>r.cutoff?after++:records++})});
+  const attention=r.rep.people.filter((p,i)=>!r.match[i]||r.how[i]==='Check').length;
+  return {dups,matched,records,after,attention};
+}
+function vReportPreview(){
+  const r=pendRep,rep=r.rep,sm=repSummary();
+  const act=emps.filter(e=>e.active).sort((a,b)=>a.name.localeCompare(b.name));
+  const badge={Saved:['ok','Saved'],Exact:['ok','Exact'],Likely:['info','Likely'],Check:['soon','Please check'],Chosen:['info','Chosen'],'No match':['urgent','No match'],Choose:['soon','Choose']};
+  const dupSet=new Set(sm.dups);
+  const period=rep.from&&rep.to?`${fmt(rep.from,{day:'numeric',month:'short'})} – ${fmt(rep.to,{day:'numeric',month:'short',year:'numeric'})}`:'';
+  const maxCut=rep.to&&rep.to<TODAY?rep.to:TODAY;
+  return `<div class="card"><b>${esc(r.file)}</b><div style="color:var(--mute);font-size:13px;margin-top:2px">${esc(rep.company||'Attendance report')} · ${period} · ${rep.people.length} people</div>
+    <label class="f">Use records up to</label>
+    <input class="in" type="date" value="${r.cutoff}" ${rep.from?`min="${rep.from}"`:''} max="${maxCut}" onchange="setCutoff(this.value)">
+    <small style="color:var(--mute);display:block;margin-top:6px">${rep.generated?`This report was generated on ${fmt(rep.generated,{day:'numeric',month:'short'})}. `:''}Days after this date are placeholders, so they are ignored.</small>
+    <div class="chips">
+      <div class="chipv v">People matched<b>${sm.matched}/${rep.people.length}</b></div>
+      <div class="chipv t">Records to save<b>${sm.records}</b></div>
+      <div class="chipv w">Ignored (after date)<b>${sm.after}</b></div>
+      <div class="chipv ${sm.attention||sm.dups.length?'e':'v'}">Need a look<b>${sm.attention+sm.dups.length}</b></div></div>
+    ${sm.dups.length?`<div class="err" style="margin-top:0">The same employee is chosen for more than one person. Fix the rows marked in red.</div>`:''}
+    <div class="sec" style="margin:14px 2px 8px"><h2 style="font-size:16px">Who is who</h2></div>
+    <p style="color:var(--mute);font-size:12px;margin:-4px 2px 10px">Names in the report are matched to your employees. Check anything marked “Please check”, and pick a person for anything unmatched.</p>
+    ${rep.people.map((p,i)=>{const b=badge[r.how[i]]||badge['No match'];const bad=r.match[i]&&dupSet.has(r.match[i]);
+      return `<div class="card" style="padding:12px 14px;${bad?'border-color:var(--red)':''}"><div class="row" style="margin-bottom:8px"><div style="flex:1;min-width:0"><b style="font-size:14px">${esc(p.name)}</b><br><small style="color:var(--mute)">Code ${esc(p.code)}${p.dept?' · '+esc(p.dept):''} · ${p.days.filter(d=>d.s==='present'||d.s==='half_day').length} days present</small></div><span class="tag ${bad?'urgent':b[0]}" style="flex:none">${bad?'Duplicate':b[1]}</span></div>
+        <select class="in" onchange="setMatch(${i},this.value)"><option value="">— Skip this person —</option>${act.map(e=>`<option value="${e.id}" ${r.match[i]===e.id?'selected':''}>${esc(e.name)} (${esc(e.id)})</option>`).join('')}</select></div>`}).join('')}
+    <div class="row" style="margin-top:8px"><button class="btn line" onclick="pendRep=null;render()">Cancel</button>
+      <button class="btn" ${sm.records&&!sm.dups.length?'':'disabled style="opacity:.5"'} onclick="confirmReport()">Import ${sm.records} record${sm.records===1?'':'s'}</button></div></div>`;
+}
+async function confirmReport(){
+  const r=pendRep;if(!r)return;
+  const people=r.rep.people.map((p,i)=>({code:p.code,name:p.name,emp:r.match[i]||'',days:p.days})).filter(p=>p.emp);
+  try{
+    const res=await api('POST','/api/attendance/report',{file:r.file,cutoff:r.cutoff,people});
+    pendRep=null;await loadState();render();
+    toast(`${res.id}: ${res.records} records saved for ${res.people} people`);
+    if(res.errors&&res.errors.length)setTimeout(()=>toast(`${res.errors.length} rows were skipped`),3300);
+  }catch(err){toast(err.message)}
+}
+
 async function confirmImport(){
   if(!pend||!pend.valid.length)return;
   const rows=[...pend.valid,...pend.errors].sort((x,y)=>x.n-y.n).map(r=>({n:r.n,code:r.code,date:r.date,s:r.s,in:r.in,out:r.out}));
@@ -923,16 +1064,17 @@ function vAttendance(){
       <div class="row" style="margin-top:6px"><button class="btn line" onclick="pend=null;render()">Cancel</button><button class="btn" ${p.valid.length?'':'disabled style="opacity:.5"'} onclick="confirmImport()">Import ${p.valid.length} record${p.valid.length===1?'':'s'}</button></div>
       ${p.errors.length?`<p style="color:var(--mute);font-size:12px;margin-top:10px">Rows with errors are skipped. Fix them in the CSV and upload again.</p>`:''}</div>`;
   }
-  const dayRows=emps.filter(e=>e.active).map(e=>[e,att[e.id+'|'+browseDate]]);
+  const isHol=holidays.some(h=>h.d===browseDate);
+  const dayRows=emps.filter(e=>e.active).map(e=>{const a=att[e.id+'|'+browseDate];return [e,a&&a.s==='absent'&&isHol?{s:'holiday',in:'',out:''}:a]});
   const counts={};dayRows.forEach(([e,a])=>{if(a)counts[a.s]=(counts[a.s]||0)+1});
   return `<header class="top"><div class="t"><small>HR uploads · employees see their own</small><h1>Attendance</h1></div></header>
   <div class="cols"><div>
-   ${p?preview:`<div class="drop" id="drop" onclick="$('#file').click()" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();pickFile(event.dataTransfer.files[0])">${ic('up')}<b>Upload attendance CSV</b><small>Tap to choose a file, or drop it here</small></div>
-   <input type="file" id="file" accept=".csv,text/csv" hidden onchange="pickFile(this.files[0]);this.value=''">
+   ${pendRep?vReportPreview():p?preview:`<div class="drop" id="drop" onclick="$('#file').click()" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();pickFile(event.dataTransfer.files[0])">${ic('up')}<b>Upload attendance report</b><small>.xls, .xlsx or .csv · tap to choose a file, or drop it here</small></div>
+   <input type="file" id="file" accept=".csv,.xls,.xlsx,text/csv" hidden onchange="pickFile(this.files[0]);this.value=''">
    <div class="tools" style="margin-top:12px"><button class="btn sm line" onclick="trySample()">Try sample file</button><button class="btn sm line" onclick="download('attendance_template.csv','emp_code,date,status,check_in,check_out\\n${emps[0]?emps[0].id:'EMP-1001'},${lastWorkday()},present,09:10,18:05\\n')">Download template</button></div>`}
    <div class="sec"><h2>Browse a day</h2></div>
    <input class="in" type="date" value="${browseDate}" max="${TODAY}" onchange="browseDate=this.value||browseDate;render()">
-   <div class="stats" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">${['present','late','wfh','leave','absent','half_day'].map(s=>`<div class="stat"><b style="color:${SCOL[s]}">${counts[s]||0}</b><small>${SNAME[s]}</small></div>`).join('')}</div>
+   <div class="stats" style="margin-top:12px;grid-template-columns:repeat(3,1fr)">${['present','half_day','absent','weekoff','holiday','leave'].map(s=>`<div class="stat"><b style="color:${SCOL[s]}">${counts[s]||0}</b><small>${SNAME[s]}</small></div>`).join('')}</div>
    <div class="tablewrap"><table><tr><th>Employee</th><th>Status</th><th>In</th><th>Out</th></tr>${dayRows.map(([e,a])=>`<tr><td>${esc(e.name)}</td><td>${a?`<span style="color:${SCOL[a.s]};font-weight:700">${SNAME[a.s]}</span>`:'<span style="color:var(--mute)">No record</span>'}</td><td>${a?.in||'—'}</td><td>${a?.out||'—'}</td></tr>`).join('')}</table></div>
   </div><div>
    <div class="sec" style="margin-top:6px"><h2>Import history</h2></div>

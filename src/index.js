@@ -4,7 +4,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 const app = new Hono();
 const COOKIE = 'ld_session';
 const SESSION_HOURS = 12;
-const STATUSES = ['present', 'late', 'absent', 'half_day', 'wfh', 'leave'];
+const STATUSES = ['present', 'late', 'absent', 'half_day', 'wfh', 'leave', 'weekoff'];
 const ROLES = ['employee', 'manager', 'admin'];
 
 /* ───────── crypto helpers ───────── */
@@ -55,7 +55,7 @@ class HttpError extends Error {
 const bad = (m) => new HttpError(400, m);
 
 /* ───────── data access ───────── */
-const EMP_SQL = `SELECT e.id, e.emp_code, e.name, e.email, e.designation, e.role, e.roles, e.is_active,
+const EMP_SQL = `SELECT e.id, e.emp_code, e.name, e.email, e.designation, e.role, e.roles, e.is_active, e.biometric_code,
   e.team_id, t.name AS team, e.manager_id, m.emp_code AS mgr, e.phone, e.must_change_password
   FROM employees e LEFT JOIN teams t ON t.id = e.team_id LEFT JOIN employees m ON m.id = e.manager_id`;
 // Leave balances / allowances are not tracked for now. Flip to true to enforce them again.
@@ -66,7 +66,7 @@ const hasRole = (r, x) => rolesOf(r).includes(x);
 const primaryRole = (roles) => ROLE_ORDER.find((x) => roles.includes(x)) || 'employee';
 const quotaRoleOf = (r) => (hasRole(r, 'manager') ? 'manager' : 'employee');   // which allowance column applies
 const empShape = (r) => ({
-  id: r.emp_code, name: r.name, email: r.email, desig: r.designation || '', role: r.role, roles: rolesOf(r),
+  id: r.emp_code, name: r.name, email: r.email, desig: r.designation || '', role: r.role, roles: rolesOf(r), bio: r.biometric_code || '',
   team: r.team || '', mgr: r.mgr || null, active: !!r.is_active, phone: r.phone || '',
 });
 async function allEmployees(db) { return (await db.prepare(EMP_SQL + ' ORDER BY e.id').all()).results; }
@@ -154,7 +154,10 @@ async function startSession(c, empId) {
 }
 
 /* ───────── auth ───────── */
-const emailEnabled = (env) => !!(env.RESEND_API_KEY && env.MAIL_FROM);
+// Mail can go out through the sender's own Gmail account (SMTP_USER + SMTP_PASS, an app password)
+// or through Resend (RESEND_API_KEY + MAIL_FROM). Gmail needs no DNS records.
+const smtpEnabled = (env) => !!(env.SMTP_USER && env.SMTP_PASS);
+const emailEnabled = (env) => smtpEnabled(env) || !!(env.RESEND_API_KEY && env.MAIL_FROM);
 app.get('/api/auth/status', async (c) => {
   const n = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM employees').first();
   return c.json({ needsSetup: n.n === 0, emailEnabled: emailEnabled(c.env) });
@@ -166,15 +169,32 @@ function tempPassword() {
   return [...crypto.getRandomValues(new Uint32Array(14))].map((x) => a[x % a.length]).join('');
 }
 async function sendResetEmail(env, to, name, link) {
+  const subject = 'Reset your LeaveDesk password';
+  const safeName = name.replace(/[<>&]/g, '');
+  const text = `Hi ${name},\n\nUse this link to choose a new password (valid for 30 minutes):\n${link}\n\nIf you didn't ask for this, you can ignore this email and your password will stay the same.`;
+  const html = `<p>Hi ${safeName},</p><p><a href="${link}">Choose a new password</a> (valid for 30 minutes).</p><p>If you didn't ask for this, you can ignore this email and your password will stay the same.</p>`;
+  if (smtpEnabled(env)) {
+    try {
+      const { WorkerMailer } = await import('worker-mailer');
+      await WorkerMailer.send(
+        {
+          host: env.SMTP_HOST || 'smtp.gmail.com', port: 465, secure: true, authType: 'plain',
+          credentials: { username: env.SMTP_USER, password: env.SMTP_PASS },
+          socketTimeoutMs: 15000, responseTimeoutMs: 15000,
+        },
+        { from: { name: 'LeaveDesk', email: env.SMTP_USER }, to, subject, text, html },
+      );
+      return { ok: true };
+    } catch (e) {
+      const msg = String((e && e.message) || e).split(env.SMTP_PASS).join('***').slice(0, 180);
+      return { ok: false, detail: `smtp: ${msg}` };
+    }
+  }
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        from: env.MAIL_FROM, to: [to], subject: 'Reset your LeaveDesk password',
-        text: `Hi ${name},\n\nUse this link to choose a new password (valid for 30 minutes):\n${link}\n\nIf you didn't ask for this, you can ignore this email and your password will stay the same.`,
-        html: `<p>Hi ${name.replace(/[<>&]/g, '')},</p><p><a href="${link}">Choose a new password</a> (valid for 30 minutes).</p><p>If you didn't ask for this, you can ignore this email and your password will stay the same.</p>`,
-      }),
+      body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, text, html }),
     });
     if (res.ok) return { ok: true };
     return { ok: false, detail: `${res.status} ${(await res.text()).slice(0, 180)}` };
@@ -775,6 +795,68 @@ app.post('/api/attendance/import', ...admin, async (c) => {
   const no = 'IMP-' + String(importId).padStart(4, '0');
   await db.batch([logStmt(db, u.id, `Attendance import ${no}`, `${str(b.file, 200)} · ${valid.length} saved, ${errors.length} skipped`)]);
   return c.json({ ok: true, id: no, total: rows.length, valid: valid.length, errors, overwritten });
+});
+
+/* ───────── admin: attendance from the biometric "Weekly Periodic Report" ───────── */
+app.post('/api/attendance/report', ...admin, async (c) => {
+  const db = c.env.DB, u = c.get('user'), b = await c.req.json();
+  const people = Array.isArray(b.people) ? b.people.slice(0, 300) : [];
+  if (!people.length) throw bad('There is nobody to import.');
+  const cutoff = b.cutoff;
+  if (!validDate(cutoff)) throw bad('Choose the date the records run up to.');
+  if (cutoff > new Date(Date.now() + 864e5).toISOString().slice(0, 10)) throw bad('That date is in the future.');
+  const emps = new Map((await allEmployees(db)).map((e) => [e.emp_code, e]));
+  const OK = ['present', 'half_day', 'absent', 'weekoff'];
+  const errors = [], rows = [], links = [], used = new Set();
+  let afterCutoff = 0, peopleSaved = 0;
+  const err = (m) => { if (errors.length < 200) errors.push(m); };
+  for (const p of people) {
+    const e = emps.get(str(p.emp, 20)), label = str(p.name, 80) || str(p.code, 20) || 'Someone';
+    if (!e) { err(`${label}: not matched to an employee`); continue; }
+    if (!e.is_active) { err(`${e.name} is inactive`); continue; }
+    if (used.has(e.id)) { err(`${e.name} is matched to more than one person in the file`); continue; }
+    used.add(e.id);
+    let n = 0;
+    for (const d of (Array.isArray(p.days) ? p.days.slice(0, 400) : [])) {
+      if (!validDate(d.d)) { err(`${e.name}: bad date “${str(d.d, 12)}”`); continue; }
+      if (d.d > cutoff) { afterCutoff++; continue; }
+      const s = str(d.s, 12), cin = str(d.in, 5), cout = str(d.out, 5);
+      if (!OK.includes(s)) { err(`${e.name} ${d.d}: unknown status “${s}”`); continue; }
+      if ((cin && !validTime(cin)) || (cout && !validTime(cout))) { err(`${e.name} ${d.d}: bad time`); continue; }
+      rows.push({ id: e.id, date: d.d, s, cin, cout }); n++;
+    }
+    if (n) { peopleSaved++; const code = str(p.code, 20); if (code) links.push([e.id, code]); }
+  }
+  if (!rows.length) throw bad('There are no records to import' + (errors.length ? ': ' + errors[0] : '.'));
+  const dates = [...new Set(rows.map((r) => r.date))];
+  const existing = new Set();
+  for (let i = 0; i < dates.length; i += 80) {
+    const part = dates.slice(i, i + 80);
+    (await db.prepare(`SELECT employee_id, date FROM attendance WHERE date IN (${part.map(() => '?').join(',')})`).bind(...part).all())
+      .results.forEach((g) => existing.add(g.employee_id + '|' + g.date));
+  }
+  const overwritten = rows.filter((r) => existing.has(r.id + '|' + r.date)).length;
+  const imp = await db.prepare(
+    'INSERT INTO attendance_imports (file_name, uploaded_by, total_rows, valid_rows, error_rows, overwritten) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(str(b.file, 200) || 'report.xls', u.id, rows.length + afterCutoff, rows.length, errors.length, overwritten).run();
+  const importId = imp.meta.last_row_id;
+  for (let i = 0; i < rows.length; i += 50) {
+    await db.batch(rows.slice(i, i + 50).map((r) => db.prepare(
+      `INSERT INTO attendance (employee_id, date, status, check_in, check_out, import_id) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(employee_id, date) DO UPDATE SET status = excluded.status, check_in = excluded.check_in,
+         check_out = excluded.check_out, import_id = excluded.import_id`
+    ).bind(r.id, r.date, r.s, r.cin || null, r.cout || null, importId)));
+  }
+  // remember which biometric code belongs to whom, so the next upload matches by itself
+  const linkStmts = [];
+  for (const [empId, code] of links) {
+    linkStmts.push(db.prepare('UPDATE employees SET biometric_code = NULL WHERE biometric_code = ? AND id <> ?').bind(code, empId));
+    linkStmts.push(db.prepare('UPDATE employees SET biometric_code = ? WHERE id = ?').bind(code, empId));
+  }
+  for (let i = 0; i < linkStmts.length; i += 80) await db.batch(linkStmts.slice(i, i + 80));
+  const no = 'IMP-' + String(importId).padStart(4, '0');
+  await db.batch([logStmt(db, u.id, `Attendance import ${no}`, `${str(b.file, 200)} · ${rows.length} records for ${peopleSaved} people, up to ${cutoff}`)]);
+  return c.json({ ok: true, id: no, people: peopleSaved, records: rows.length, afterCutoff, overwritten, errors: errors.slice(0, 20) });
 });
 
 export default app;
