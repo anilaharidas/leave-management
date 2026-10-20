@@ -381,9 +381,11 @@ app.get('/api/state', requireUser, async (c) => {
        JOIN employees e ON e.id = a.employee_id WHERE a.date >= ?`).bind(since).all()).results;
     att.forEach((a) => { out.att[a.emp_code + '|' + a.date] = { s: a.status, in: a.check_in || '', out: a.check_out || '', batch: 'IMP-' + String(a.import_id || 0).padStart(4, '0') }; });
     out.imports = (await db.prepare(
-      `SELECT i.id, i.file_name, i.uploaded_at, i.total_rows, i.valid_rows, i.error_rows, i.overwritten, u.name AS by
+      `SELECT i.id, i.file_name, i.uploaded_at, i.total_rows, i.valid_rows, i.error_rows, i.overwritten, u.name AS by,
+         (SELECT COUNT(*) FROM attendance a WHERE a.import_id = i.id) AS owned,
+         (SELECT COUNT(DISTINCT a.employee_id) FROM attendance a WHERE a.import_id = i.id) AS people
        FROM attendance_imports i JOIN employees u ON u.id = i.uploaded_by ORDER BY i.id DESC LIMIT 50`).all()).results
-      .map((i) => ({ id: 'IMP-' + String(i.id).padStart(4, '0'), file: i.file_name, by: i.by, at: i.uploaded_at.slice(0, 16), total: i.total_rows, valid: i.valid_rows, errors: i.error_rows, overwritten: i.overwritten }));
+      .map((i) => ({ id: 'IMP-' + String(i.id).padStart(4, '0'), file: i.file_name, by: i.by, at: i.uploaded_at.slice(0, 16), total: i.total_rows, valid: i.valid_rows, errors: i.error_rows, overwritten: i.overwritten, owned: i.owned, people: i.people }));
     out.audit = (await db.prepare(
       `SELECT l.action, l.details, l.created_at FROM audit_log l ORDER BY l.id DESC LIMIT 200`).all()).results
       .map((l) => ({ a: l.action, d: l.details || '', t: l.created_at.slice(0, 16) }));
@@ -857,6 +859,25 @@ app.post('/api/attendance/report', ...admin, async (c) => {
   const no = 'IMP-' + String(importId).padStart(4, '0');
   await db.batch([logStmt(db, u.id, `Attendance import ${no}`, `${str(b.file, 200)} · ${rows.length} records for ${peopleSaved} people, up to ${cutoff}`)]);
   return c.json({ ok: true, id: no, people: peopleSaved, records: rows.length, afterCutoff, overwritten, errors: errors.slice(0, 20) });
+});
+
+/* ───────── admin: delete an attendance import ─────────
+   Removes only the attendance records this import currently owns, then the import itself.
+   Records saved by other imports, and everything else in the system, are left alone. */
+app.post('/api/attendance/imports/:id/delete', ...admin, async (c) => {
+  const db = c.env.DB, u = c.get('user');
+  const m = /^IMP-(\d{1,9})$/.exec(c.req.param('id'));
+  if (!m) throw bad('That import number is not valid.');
+  const id = Number(m[1]);
+  const imp = await db.prepare('SELECT id, file_name FROM attendance_imports WHERE id = ?').bind(id).first();
+  if (!imp) throw new HttpError(404, 'Import not found.');
+  const owned = await db.prepare('SELECT COUNT(*) AS n FROM attendance WHERE import_id = ?').bind(id).first();
+  await db.batch([
+    db.prepare('DELETE FROM attendance WHERE import_id = ?').bind(id),
+    db.prepare('DELETE FROM attendance_imports WHERE id = ?').bind(id),
+    logStmt(db, u.id, `Attendance import IMP-${String(id).padStart(4, '0')} deleted`, `${imp.file_name} · ${owned.n} attendance records removed`),
+  ]);
+  return c.json({ ok: true, removed: owned.n });
 });
 
 export default app;

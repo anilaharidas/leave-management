@@ -1032,6 +1032,21 @@ function vReportPreview(){
     <div class="row" style="margin-top:8px"><button class="btn line" onclick="pendRep=null;render()">Cancel</button>
       <button class="btn" ${sm.records&&!sm.dups.length?'':'disabled style="opacity:.5"'} onclick="confirmReport()">Import ${sm.records} record${sm.records===1?'':'s'}</button></div></div>`;
 }
+function deleteImport(id){
+  const i=imports.find(x=>x.id===id);if(!i)return;
+  const body=i.owned
+    ?`<p style="margin:8px 0">This removes <b>${i.owned}</b> attendance records for <b>${i.people}</b> ${i.people===1?'person':'people'}. Employees and managers will no longer see those days on their attendance or calendar.</p><p style="margin:8px 0;color:var(--mute);font-size:13px">Records from other uploads and everything else are not touched. This can't be undone.</p>`
+    :`<p style="margin:8px 0">No attendance records currently come from this upload, so only its entry in the history is removed.</p>`;
+  sheet(`<h2 style="margin:0 0 4px">Delete ${esc(i.id)}?</h2><small style="color:var(--mute)">${esc(i.file)}</small>${body}
+    <div class="row" style="gap:10px;margin-top:14px"><button class="btn ghost" style="flex:1;margin-top:0;color:var(--ink)" onclick="closeSheet()">Cancel</button><button class="btn" style="flex:1;margin-top:0;background:var(--red);box-shadow:none" onclick="doDeleteImport('${esc(i.id)}')">Delete</button></div>`);
+}
+async function doDeleteImport(id){
+  try{
+    const r=await api('POST','/api/attendance/imports/'+encodeURIComponent(id)+'/delete',{});
+    closeSheet();await loadState();render();
+    toast(r.removed?`${id} deleted: ${r.removed} records removed`:`${id} removed from the history`);
+  }catch(err){closeSheet();toast(err.message)}
+}
 async function confirmReport(){
   const r=pendRep;if(!r)return;
   const people=r.rep.people.map((p,i)=>({code:p.code,name:p.name,emp:r.match[i]||'',days:p.days})).filter(p=>p.emp);
@@ -1078,7 +1093,7 @@ function vAttendance(){
    <div class="tablewrap"><table><tr><th>Employee</th><th>Status</th><th>In</th><th>Out</th></tr>${dayRows.map(([e,a])=>`<tr><td>${esc(e.name)}</td><td>${a?`<span style="color:${SCOL[a.s]};font-weight:700">${SNAME[a.s]}</span>`:'<span style="color:var(--mute)">No record</span>'}</td><td>${a?.in||'—'}</td><td>${a?.out||'—'}</td></tr>`).join('')}</table></div>
   </div><div>
    <div class="sec" style="margin-top:6px"><h2>Import history</h2></div>
-   ${imports.map(i=>`<div class="card"><div class="row"><b style="flex:1;font-size:14px">${esc(i.id)}</b><span class="pill Approved">Saved</span></div><div style="font-size:13px;margin-top:4px">${esc(i.file)}</div><small style="color:var(--mute)">${esc(i.by)} · ${esc(i.at)}<br>${i.valid} saved · ${i.errors} skipped${i.overwritten?` · ${i.overwritten} replaced`:''}</small></div>`).join('')||'<div class="empty">No imports yet.</div>'}
+   ${imports.map(i=>`<div class="card"><div class="row"><b style="flex:1;font-size:14px">${esc(i.id)}</b><span class="pill Approved">Saved</span></div><div style="font-size:13px;margin-top:4px">${esc(i.file)}</div><small style="color:var(--mute)">${esc(i.by)} · ${esc(i.at)}<br>${i.valid} saved · ${i.errors} skipped${i.overwritten?` · ${i.overwritten} replaced`:''}<br>${i.owned?`${i.owned} records for ${i.people} ${i.people===1?'person':'people'} currently come from this upload`:'No records currently come from this upload (a later upload replaced them)'}</small><button class="btn line sm" style="margin-top:10px;color:var(--red)" onclick="deleteImport('${esc(i.id)}')">Delete this upload</button></div>`).join('')||'<div class="empty">No imports yet.</div>'}
   </div></div>`;
 }
 

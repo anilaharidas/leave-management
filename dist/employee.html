@@ -215,6 +215,27 @@ nav a.vlink{display:none}
 @media(min-width:900px){nav a.vlink{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--mute);padding:12px 14px;border-radius:13px;text-decoration:none}nav a.vlink:hover{background:var(--brand-l)}}
 
 nav .sidelink+.sidelink{margin-top:0}
+
+/* attendance calendar: WFH = light blue, present = light green, applied leave = light purple, everything else = light yellow */
+:root{--c-wfh:#dbeafe;--c-wfh-t:#1e40af;--c-pres:#dcfce7;--c-pres-t:#166534;--c-leave:#ede9fe;--c-leave-t:#5b21b6;--c-other:#fef9c3;--c-other-t:#854d0e}
+@media (prefers-color-scheme:dark){:root{--c-wfh:#1e3a5f;--c-wfh-t:#93c5fd;--c-pres:#14532d;--c-pres-t:#86efac;--c-leave:#3b2a6b;--c-leave-t:#c4b5fd;--c-other:#4a3f12;--c-other-t:#fde68a}}
+.cell.k-wfh{background:var(--c-wfh);color:var(--c-wfh-t);--sb:var(--c-wfh);--sf:var(--c-wfh-t)}
+.cell.k-present{background:var(--c-pres);color:var(--c-pres-t);--sb:var(--c-pres);--sf:var(--c-pres-t)}
+.cell.k-leave{background:var(--c-leave);color:var(--c-leave-t);--sb:var(--c-leave);--sf:var(--c-leave-t)}
+.cell.k-other{background:var(--c-other);color:var(--c-other-t);--sb:var(--c-other);--sf:var(--c-other-t)}
+.cell[class*=" k-"]{font-weight:600}
+.cell.k-pend{border:2px dashed currentColor}
+.cell.sel[class*=" k-"]{background:var(--sb);color:var(--sf);box-shadow:inset 0 0 0 2.5px var(--brand)}
+.kpill{display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:700}
+.kpill.k-wfh{background:var(--c-wfh);color:var(--c-wfh-t)}.kpill.k-present{background:var(--c-pres);color:var(--c-pres-t)}
+.kpill.k-leave{background:var(--c-leave);color:var(--c-leave-t)}.kpill.k-other{background:var(--c-other);color:var(--c-other-t)}
+.lg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
+.lg span:before{content:"";display:inline-block;width:13px;height:13px;border-radius:4px;background:var(--c);border:1px solid rgba(0,0,0,.12);margin-right:6px;vertical-align:-2px}
+.statc{border-radius:14px;padding:10px 4px;text-align:center}
+.statc b{display:block;font-size:20px;font-family:Fraunces,serif}.statc small{font-size:11px}
+.statc.k-wfh{background:var(--c-wfh);color:var(--c-wfh-t)}.statc.k-present{background:var(--c-pres);color:var(--c-pres-t)}
+.statc.k-leave{background:var(--c-leave);color:var(--c-leave-t)}.statc.k-other{background:var(--c-other);color:var(--c-other-t)}
+.dreq{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 </style>
 </head>
 <body>
@@ -656,25 +677,74 @@ function attFor(ds){
 }
 const ANAMES={present:'Present',late:'Late arrival',wfh:'Work from home',absent:'Absent',leave:'On leave',half_day:'Half day',weekoff:'Weekly off',holiday:'Holiday'};
 const ACOL={present:'var(--green)',late:'var(--amber)',wfh:'var(--plum)',absent:'var(--red)',leave:'var(--blue)',half_day:'var(--blue)',weekoff:'var(--mute)',holiday:'var(--brand)'};
+const KLABEL={wfh:'Work from home',present:'Present',leave:'Leave',other:'Other'};
+const KSWATCH={wfh:'var(--c-wfh)',present:'var(--c-pres)',leave:'var(--c-leave)',other:'var(--c-other)'};
+/* what happened on a date, from the employee's requests and the HR-uploaded attendance (requests win over punches) */
+function dayInfo(ds){
+  const dow=P(ds).getDay(), we=dow===0||dow===6, hol=holMap()[ds]||'';
+  const working=!we&&!hol;
+  const reqs=myReqs().filter(r=>ds>=r.from&&ds<=r.to);
+  const live=reqs.filter(r=>['Approved','Pending'].includes(r.status));
+  const rec=DB.att[meId+'|'+ds]||null;
+  const leave=working&&live.find(r=>r.kind==='leave'), wfh=working&&live.find(r=>r.kind==='wfh');
+  let kind=null,pend=false;
+  if(leave){kind='leave';pend=leave.status==='Pending'}
+  else if(wfh){kind='wfh';pend=wfh.status==='Pending'}
+  else if(rec&&(rec.s==='present'||rec.s==='late'))kind='present';
+  else if(rec&&rec.s==='wfh')kind='wfh';
+  else if(rec&&rec.s==='leave')kind='leave';
+  else if(rec||hol)kind='other';
+  return {ds,kind,pend,reqs,rec,hol,we,working};
+}
+function officeTime(a,b){
+  if(!a||!b)return '';const [h1,m1]=a.split(':').map(Number),[h2,m2]=b.split(':').map(Number);const t=(h2*60+m2)-(h1*60+m1);
+  return t>0?`${Math.floor(t/60)}h ${String(t%60).padStart(2,'0')}m`:'';
+}
+function dayDetail(ds){
+  const d=dayInfo(ds), title=fmt(ds,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const out=[];
+  d.reqs.forEach(r=>{
+    const label=r.kind==='wfh'?'Work from home':((LT[r.type]?LT[r.type].label:'Leave')+' leave');
+    const ap=DB.emps.find(x=>x.id===r.appr);
+    out.push(`<div class="dreq"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(label)}</b><span class="pill ${r.status}">${r.status}</span></div>
+      <div class="kv"><span>Dates</span><b>${range(r)}</b></div>
+      <div class="kv"><span>Duration</span><b>${r.days} day${r.days===1?'':'s'}${r.half?' (half day)':''}</b></div>
+      <div class="kv"><span>Reason</span><b style="max-width:62%;text-align:right">${esc(r.reason)}</b></div>
+      <div class="kv"><span>${r.status==='Pending'?'Waiting for':'Decided by'}</span><b>${esc(ap?ap.name:'—')}</b></div>
+      ${r.rej?`<div class="err" style="margin-top:8px"><b>Reason for rejection</b><br>${esc(r.rej)}</div>`:''}
+      <a style="color:var(--brand);font-weight:600;font-size:13px;cursor:pointer" onclick="openReq('${r.no}')">View request →</a></div>`);
+  });
+  if(d.hol)out.push(`<div class="dreq"><div class="kv" style="border:none"><span>Holiday</span><b>${esc(d.hol)}</b></div></div>`);
+  if(d.rec){
+    const a=effective(ds,d.rec), t=officeTime(a.in,a.out);
+    out.push(`<div class="dreq"><b>Attendance (uploaded by HR)</b>
+      <div class="kv"><span>Status</span><b>${ANAMES[a.s]||a.s}</b></div>
+      ${a.in?`<div class="kv"><span>Check-in</span><b>${esc(a.in)}</b></div><div class="kv"><span>Check-out</span><b>${esc(a.out||'—')}</b></div>${t?`<div class="kv"><span>Time in office</span><b>${t}</b></div>`:''}`:''}</div>`);
+  }else if(d.working&&ds<=TODAY){
+    out.push(`<div class="dreq"><small style="color:var(--mute)">No attendance has been uploaded for this day.</small></div>`);
+  }else if(ds>TODAY){
+    out.push(`<div class="dreq"><small style="color:var(--mute)">Upcoming day.</small></div>`);
+  }
+  if(!out.length)out.push(`<div class="dreq"><small style="color:var(--mute)">Nothing recorded for this day.</small></div>`);
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>${title}</b>${d.kind?`<span class="kpill k-${d.kind}">${KLABEL[d.kind]}${d.pend?' · pending':''}</span>`:''}</div>${out.join('')}</div>`;
+}
 function vAttendance(){
-  const cnt={present:0,half_day:0,absent:0,weekoff:0};
+  const cnt={wfh:0,present:0,leave:0,other:0};
   const grid=monthGrid(attMonth,(ds,i)=>{
-    const a=attFor(ds), dow=P(ds).getDay(), we=dow===0||dow===6;
-    if(a&&cnt[a.s]!==undefined)cnt[a.s]++;
-    return `<button class="cell ${we?'we':''} ${ds===TODAY?'today':''} ${selDay===ds?'sel':''}" onclick="selDay='${ds}';render()">${i}${a?`<i style="background:${ACOL[a.s]}"></i>`:''}</button>`});
-  let detail='';
-  if(selDay){const a=attFor(selDay);
-    detail=`<div class="card"><b>${fmt(selDay,{weekday:'long',day:'numeric',month:'long'})}</b>
-    ${a?`<div class="kv" style="margin-top:6px"><span>Status</span><b>${ANAMES[a.s]}</b></div>${a.in?`<div class="kv"><span>Check-in</span><b>${esc(a.in)}</b></div><div class="kv"><span>Check-out</span><b>${esc(a.out||'—')}</b></div>`:''}`:`<br><small style="color:var(--mute)">${selDay>TODAY?'Upcoming':'No record uploaded'}</small>`}</div>`}
+    const d=dayInfo(ds);
+    if(d.kind)cnt[d.kind]++;
+    const aria=`${fmt(ds,{day:'numeric',month:'long'})}${d.kind?': '+KLABEL[d.kind]+(d.pend?' (pending)':''):''}`;
+    return `<button class="cell ${d.kind?'k-'+d.kind:''} ${d.pend?'k-pend':''} ${d.we?'we':''} ${ds===TODAY?'today':''} ${selDay===ds?'sel':''}" aria-label="${aria}" onclick="selDay='${ds}';render()">${i}</button>`});
   const rows=Object.keys(DB.att).filter(k=>k.startsWith(meId+'|')).map(k=>[k.split('|')[1],effective(k.split('|')[1],DB.att[k])]).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10);
-  return `<header class="top"><div class="t"><small>Uploaded by HR</small><h1>My attendance</h1></div></header>
-  <div class="stats"><div class="stat"><b style="color:var(--green)">${cnt.present}</b><small>Present</small></div><div class="stat"><b style="color:var(--blue)">${cnt.half_day}</b><small>Half day</small></div><div class="stat"><b style="color:var(--red)">${cnt.absent}</b><small>Absent</small></div><div class="stat"><b style="color:var(--mute)">${cnt.weekoff}</b><small>Weekly off</small></div></div>
+  return `<header class="top"><div class="t"><small>Attendance, work from home and leave</small><h1>My attendance</h1></div></header>
+  <div class="stats"><div class="statc k-wfh"><b>${cnt.wfh}</b><small>Work from home</small></div><div class="statc k-present"><b>${cnt.present}</b><small>Present</small></div><div class="statc k-leave"><b>${cnt.leave}</b><small>Leave</small></div><div class="statc k-other"><b>${cnt.other}</b><small>Other</small></div></div>
   <div class="cols"><div><div class="card"><div class="calhead"><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()-1,1);selDay=null;render()">${ic('left')}</button><b>${mTitle(attMonth)}</b><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()+1,1);selDay=null;render()">${ic('right')}</button></div>
-  ${grid}<div class="legend"><span style="--c:var(--green)">Present</span><span style="--c:var(--blue)">Half day</span><span style="--c:var(--red)">Absent</span><span style="--c:var(--mute)">Weekly off</span><span style="--c:var(--brand)">Holiday</span></div></div>
-  ${detail}</div><div>
-  <div class="sec" style="margin-top:0"><h2>Recent records</h2></div>
-  ${rows.length?rows.map(([ds,a])=>`<div class="card hol"><div class="d"><b>${P(ds).getDate()}</b><small>${P(ds).toLocaleDateString('en-GB',{month:'short'})}</small></div><div class="m" style="flex:1"><b>${ANAMES[a.s]||a.s}</b><small>${a.in?esc(a.in)+' → '+esc(a.out||'—'):'No check-in recorded'}</small></div></div>`).join(''):'<div class="card" style="text-align:center;color:var(--mute)">No attendance uploaded for you yet.</div>'}
-  <p style="color:var(--mute);font-size:12px;text-align:center;margin-top:8px">Attendance is uploaded by HR and is separate from leave and WFH approvals. Spot a mistake? Contact HR.</p></div></div>`;
+  ${grid}<div class="lg"><span style="--c:var(--c-wfh)">Work from home</span><span style="--c:var(--c-pres)">Present</span><span style="--c:var(--c-leave)">Leave applied</span><span style="--c:var(--c-other)">Other</span></div>
+  <small style="color:var(--mute);display:block;margin-top:8px">Tap a date for details. A dashed outline means the request is still waiting for approval.</small></div>
+  ${selDay?dayDetail(selDay):''}</div><div>
+  <div class="sec" style="margin-top:0"><h2>Recent attendance</h2></div>
+  ${rows.length?rows.map(([ds,a])=>`<div class="card hol" style="cursor:pointer" onclick="attMonth=new Date(${P(ds).getFullYear()},${P(ds).getMonth()},1);selDay='${ds}';render()"><div class="d"><b>${P(ds).getDate()}</b><small>${P(ds).toLocaleDateString('en-GB',{month:'short'})}</small></div><div class="m" style="flex:1"><b>${ANAMES[a.s]||a.s}</b><small>${a.in?esc(a.in)+' → '+esc(a.out||'—'):'No check-in recorded'}</small></div></div>`).join(''):'<div class="card" style="text-align:center;color:var(--mute)">No attendance uploaded for you yet.</div>'}
+  <p style="color:var(--mute);font-size:12px;text-align:center;margin-top:8px">Present days come from the attendance file uploaded by HR. Work from home and leave come from your requests. Spot a mistake? Contact HR.</p></div></div>`;
 }
 
 function vProfile(){
