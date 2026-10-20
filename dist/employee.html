@@ -124,7 +124,7 @@ textarea.in{resize:none;height:90px}
 .cell i{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
 .legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
 .stat b{display:block;font-size:20px;font-family:Fraunces,serif}.stat small{font-size:11px;color:var(--mute)}
 /* sheet */
@@ -182,7 +182,7 @@ textarea.in{resize:none;height:90px}
   .balances{gap:6px}.bal{padding:12px 4px}.ring{width:54px;height:54px}.ring span{width:42px;height:42px;font-size:14px}
   .types{gap:6px}.type{padding:10px 4px}
   .two{grid-template-columns:1fr}
-  .stats{grid-template-columns:repeat(2,1fr)}
+  .stats{grid-template-columns:repeat(3,1fr)}
   .cell{font-size:12px;border-radius:8px}.grid{gap:2px}
   .req{gap:10px;padding:12px}.req .ic{width:38px;height:38px}
   nav button{font-size:10px}
@@ -217,24 +217,25 @@ nav a.vlink{display:none}
 nav .sidelink+.sidelink{margin-top:0}
 
 /* attendance calendar: WFH = light blue, present = light green, applied leave = light purple, everything else = light yellow */
-:root{--c-wfh:#dbeafe;--c-wfh-t:#1e40af;--c-pres:#dcfce7;--c-pres-t:#166534;--c-leave:#ede9fe;--c-leave-t:#5b21b6;--c-other:#fef9c3;--c-other-t:#854d0e}
-@media (prefers-color-scheme:dark){:root{--c-wfh:#1e3a5f;--c-wfh-t:#93c5fd;--c-pres:#14532d;--c-pres-t:#86efac;--c-leave:#3b2a6b;--c-leave-t:#c4b5fd;--c-other:#4a3f12;--c-other-t:#fde68a}}
+:root{--c-hol:#fee2e2;--c-hol-t:#b91c1c;--c-wfh:#dbeafe;--c-wfh-t:#1e40af;--c-pres:#dcfce7;--c-pres-t:#166534;--c-leave:#ede9fe;--c-leave-t:#5b21b6;--c-other:#fef9c3;--c-other-t:#854d0e}
+@media (prefers-color-scheme:dark){:root{--c-hol:#5b1a1a;--c-hol-t:#fca5a5;--c-wfh:#1e3a5f;--c-wfh-t:#93c5fd;--c-pres:#14532d;--c-pres-t:#86efac;--c-leave:#3b2a6b;--c-leave-t:#c4b5fd;--c-other:#4a3f12;--c-other-t:#fde68a}}
 .cell.k-wfh{background:var(--c-wfh);color:var(--c-wfh-t);--sb:var(--c-wfh);--sf:var(--c-wfh-t)}
 .cell.k-present{background:var(--c-pres);color:var(--c-pres-t);--sb:var(--c-pres);--sf:var(--c-pres-t)}
 .cell.k-leave{background:var(--c-leave);color:var(--c-leave-t);--sb:var(--c-leave);--sf:var(--c-leave-t)}
+.cell.k-holiday{background:var(--c-hol);color:var(--c-hol-t);--sb:var(--c-hol);--sf:var(--c-hol-t)}
 .cell.k-other{background:var(--c-other);color:var(--c-other-t);--sb:var(--c-other);--sf:var(--c-other-t)}
 .cell[class*=" k-"]{font-weight:600}
 .cell.k-pend{border:2px dashed currentColor}
 .cell.sel[class*=" k-"]{background:var(--sb);color:var(--sf);box-shadow:inset 0 0 0 2.5px var(--brand)}
 .kpill{display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:700}
 .kpill.k-wfh{background:var(--c-wfh);color:var(--c-wfh-t)}.kpill.k-present{background:var(--c-pres);color:var(--c-pres-t)}
-.kpill.k-leave{background:var(--c-leave);color:var(--c-leave-t)}.kpill.k-other{background:var(--c-other);color:var(--c-other-t)}
+.kpill.k-leave{background:var(--c-leave);color:var(--c-leave-t)}.kpill.k-holiday{background:var(--c-hol);color:var(--c-hol-t)}.kpill.k-other{background:var(--c-other);color:var(--c-other-t)}
 .lg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mute);margin-top:12px}
 .lg span:before{content:"";display:inline-block;width:13px;height:13px;border-radius:4px;background:var(--c);border:1px solid rgba(0,0,0,.12);margin-right:6px;vertical-align:-2px}
 .statc{border-radius:14px;padding:10px 4px;text-align:center}
 .statc b{display:block;font-size:20px;font-family:Fraunces,serif}.statc small{font-size:11px}
 .statc.k-wfh{background:var(--c-wfh);color:var(--c-wfh-t)}.statc.k-present{background:var(--c-pres);color:var(--c-pres-t)}
-.statc.k-leave{background:var(--c-leave);color:var(--c-leave-t)}.statc.k-other{background:var(--c-other);color:var(--c-other-t)}
+.statc.k-leave{background:var(--c-leave);color:var(--c-leave-t)}.statc.k-holiday{background:var(--c-hol);color:var(--c-hol-t)}.statc.k-other{background:var(--c-other);color:var(--c-other-t)}
 .dreq{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 </style>
 </head>
@@ -677,7 +678,7 @@ function attFor(ds){
 }
 const ANAMES={present:'Present',late:'Late arrival',wfh:'Work from home',absent:'Absent',leave:'On leave',half_day:'Half day',weekoff:'Weekly off',holiday:'Holiday'};
 const ACOL={present:'var(--green)',late:'var(--amber)',wfh:'var(--plum)',absent:'var(--red)',leave:'var(--blue)',half_day:'var(--blue)',weekoff:'var(--mute)',holiday:'var(--brand)'};
-const KLABEL={wfh:'Work from home',present:'Present',leave:'Leave',other:'Other'};
+const KLABEL={wfh:'Work from home',present:'Present',leave:'Leave',other:'Other',holiday:'Holiday'};
 const KSWATCH={wfh:'var(--c-wfh)',present:'var(--c-pres)',leave:'var(--c-leave)',other:'var(--c-other)'};
 /* what happened on a date, from the employee's requests and the HR-uploaded attendance (requests win over punches) */
 function dayInfo(ds){
@@ -693,7 +694,8 @@ function dayInfo(ds){
   else if(rec&&(rec.s==='present'||rec.s==='late'))kind='present';
   else if(rec&&rec.s==='wfh')kind='wfh';
   else if(rec&&rec.s==='leave')kind='leave';
-  else if(rec||hol)kind='other';
+  else if(hol)kind='holiday';
+  else if(rec)kind='other';
   return {ds,kind,pend,reqs,rec,hol,we,working};
 }
 function officeTime(a,b){
@@ -729,7 +731,7 @@ function dayDetail(ds){
   return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>${title}</b>${d.kind?`<span class="kpill k-${d.kind}">${KLABEL[d.kind]}${d.pend?' · pending':''}</span>`:''}</div>${out.join('')}</div>`;
 }
 function vAttendance(){
-  const cnt={wfh:0,present:0,leave:0,other:0};
+  const cnt={wfh:0,present:0,leave:0,holiday:0,other:0};
   const grid=monthGrid(attMonth,(ds,i)=>{
     const d=dayInfo(ds);
     if(d.kind)cnt[d.kind]++;
@@ -737,9 +739,9 @@ function vAttendance(){
     return `<button class="cell ${d.kind?'k-'+d.kind:''} ${d.pend?'k-pend':''} ${d.we?'we':''} ${ds===TODAY?'today':''} ${selDay===ds?'sel':''}" aria-label="${aria}" onclick="selDay='${ds}';render()">${i}</button>`});
   const rows=Object.keys(DB.att).filter(k=>k.startsWith(meId+'|')).map(k=>[k.split('|')[1],effective(k.split('|')[1],DB.att[k])]).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10);
   return `<header class="top"><div class="t"><small>Attendance, work from home and leave</small><h1>My attendance</h1></div></header>
-  <div class="stats"><div class="statc k-wfh"><b>${cnt.wfh}</b><small>Work from home</small></div><div class="statc k-present"><b>${cnt.present}</b><small>Present</small></div><div class="statc k-leave"><b>${cnt.leave}</b><small>Leave</small></div><div class="statc k-other"><b>${cnt.other}</b><small>Other</small></div></div>
+  <div class="stats"><div class="statc k-wfh"><b>${cnt.wfh}</b><small>Work from home</small></div><div class="statc k-present"><b>${cnt.present}</b><small>Present</small></div><div class="statc k-leave"><b>${cnt.leave}</b><small>Leave</small></div><div class="statc k-holiday"><b>${cnt.holiday}</b><small>Holiday</small></div><div class="statc k-other"><b>${cnt.other}</b><small>Other</small></div></div>
   <div class="cols"><div><div class="card"><div class="calhead"><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()-1,1);selDay=null;render()">${ic('left')}</button><b>${mTitle(attMonth)}</b><button class="iconbtn" onclick="attMonth=new Date(attMonth.getFullYear(),attMonth.getMonth()+1,1);selDay=null;render()">${ic('right')}</button></div>
-  ${grid}<div class="lg"><span style="--c:var(--c-wfh)">Work from home</span><span style="--c:var(--c-pres)">Present</span><span style="--c:var(--c-leave)">Leave applied</span><span style="--c:var(--c-other)">Other</span></div>
+  ${grid}<div class="lg"><span style="--c:var(--c-wfh)">Work from home</span><span style="--c:var(--c-pres)">Present</span><span style="--c:var(--c-leave)">Leave applied</span><span style="--c:var(--c-hol)">Holiday</span><span style="--c:var(--c-other)">Other</span></div>
   <small style="color:var(--mute);display:block;margin-top:8px">Tap a date for details. A dashed outline means the request is still waiting for approval.</small></div>
   ${selDay?dayDetail(selDay):''}</div><div>
   <div class="sec" style="margin-top:0"><h2>Recent attendance</h2></div>
