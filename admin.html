@@ -292,6 +292,56 @@ nav .sidelink+.sidelink{margin-top:0}
 .roles{display:flex;flex-direction:column;gap:8px}
 .rolechk{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);font-size:14px;cursor:pointer;margin:0}
 .rolechk input{width:18px;height:18px;accent-color:var(--brand);flex:none}
+
+/* calendar attendance report: holiday red, weekend light grey, leave light blue, WFH light green, missing yellow, no data dark grey */
+:root{--k-hol:#fecaca;--k-hol-t:#b91c1c;--k-we:#e6e8ee;--k-we-t:#7b8094;--k-leave:#cfe6fc;--k-leave-t:#1d4f8f;--k-wfh:#c9f1d6;--k-wfh-t:#176b3a;--k-miss:#fde047;--k-miss-t:#5c3a06;--k-nd:#5b606e;--k-nd-t:#fff;
+  --kb-leave:#7db8f0;--kb-wfh:#6fcf97;--kb-miss:#facc15;--kb-nodata:#5b606e}
+@media (prefers-color-scheme:dark){:root{--k-hol:#6b1f2a;--k-hol-t:#fca5a5;--k-we:#2a2740;--k-we-t:#8f8bb0;--k-leave:#1e3a5f;--k-leave-t:#93c5fd;--k-wfh:#14532d;--k-wfh-t:#86efac;--k-miss:#a16207;--k-miss-t:#fef9c3;--k-nd:#6b7080;--k-nd-t:#fff;
+  --kb-leave:#3b82c4;--kb-wfh:#2f9e62;--kb-miss:#eab308;--kb-nodata:#6b7080}}
+.rk-hol{background:var(--k-hol);color:var(--k-hol-t)}.rk-we{background:var(--k-we);color:var(--k-we-t)}
+.rk-leave{background:var(--k-leave);color:var(--k-leave-t)}.rk-wfh{background:var(--k-wfh);color:var(--k-wfh-t)}
+.rk-miss{background:var(--k-miss);color:var(--k-miss-t)}.rk-nodata{background:var(--k-nd);color:var(--k-nd-t)}
+.rk-pres{background:var(--card);color:var(--green);box-shadow:inset 0 0 0 1px var(--line)}
+.rk-future{color:var(--mute);opacity:.65}
+.rk-pend{outline:2px dashed currentColor;outline-offset:-3px}
+.rbar{position:sticky;top:0;z-index:5;background:var(--bg);margin:0 -16px;padding:6px 16px 10px}
+.rleg{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 14px;font-size:12px;font-weight:600}
+.rleg span{padding:4px 10px;border-radius:99px}
+.rmonth,.rweek{margin-bottom:22px;scroll-margin-top:130px}
+.rmonth h3,.rweek h3{font-family:Fraunces,serif;font-size:19px;margin:0 2px 2px}
+.rsum{font-size:12px;color:var(--mute);margin:0 2px 10px}.rsum .rmiss{color:#b45309}
+.rgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.rdow{font-size:11px;color:var(--mute);text-align:center;font-weight:700;padding:2px 0}
+.rc{border:none;border-radius:10px;min-height:54px;padding:6px 6px 5px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;text-align:left;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink)}
+.rc.rk-hol{background:var(--k-hol);color:var(--k-hol-t);box-shadow:none}.rc.rk-we{background:var(--k-we);color:var(--k-we-t);box-shadow:none}
+.rc.rk-leave{background:var(--k-leave);color:var(--k-leave-t);box-shadow:none}.rc.rk-wfh{background:var(--k-wfh);color:var(--k-wfh-t);box-shadow:none}
+.rc.rk-miss{background:var(--k-miss);color:var(--k-miss-t);box-shadow:none}.rc.rk-nodata{background:var(--k-nd);color:var(--k-nd-t);box-shadow:none}
+.rc.rk-pres{background:var(--card);color:var(--green)}
+.rc.empty{visibility:hidden}
+.rc.today{outline:2px solid var(--brand);outline-offset:1px}
+.rc small{font-size:11px;font-weight:700;align-self:flex-end}
+.rb{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--bg)}
+.rb i{display:block;height:100%}
+.rb-leave{background:var(--kb-leave)}.rb-wfh{background:var(--kb-wfh)}.rb-miss{background:var(--kb-miss)}.rb-nodata{background:var(--kb-nodata)}
+.rnow{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;background:var(--brand-l);color:var(--brand);padding:2px 8px;border-radius:99px;vertical-align:3px;margin-left:6px}
+.rwk{display:grid;grid-template-columns:minmax(76px,1.6fr) repeat(7,minmax(0,1fr));gap:3px;align-items:stretch}
+.rwk .hd{font-size:11px;color:var(--mute);text-align:center;font-weight:600;line-height:1.25;padding:2px 0}
+.rwk .hd b{font-size:14px;color:var(--ink)}.rwk .hd.today b{color:var(--brand)}
+.rwk .nm{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:center;padding:2px;border:none;background:none;text-align:left;color:var(--ink);font-family:inherit}
+.rwk .nm.lk{cursor:pointer}.rwk .nm.lk:hover{color:var(--brand)}
+.rwk .c{border:none;border-radius:8px;min-height:32px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;display:grid;place-items:center;padding:0}
+.rwrow{display:flex;gap:12px;align-items:center;width:100%;border:none;background:none;padding:5px 0;font:inherit;cursor:pointer;text-align:left}
+.rwd{width:44px;text-align:center;flex:none;font-size:11px;color:var(--mute);font-weight:700}.rwd b{display:block;font-size:19px;font-family:Fraunces,serif;color:var(--ink)}.rwd.today b{color:var(--brand)}
+.pill2{border-radius:8px;padding:7px 11px;font-size:13px;font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rwrow .pill2{flex:1}
+.rmon{font-size:13px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.04em;margin:18px 2px 2px}
+.rday{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer;scroll-margin-top:130px}
+.rday .dt{width:46px;text-align:center;flex:none}.rday .dt small{display:block;font-size:11px;color:var(--mute);font-weight:700;text-transform:uppercase}
+.rday .dt b{font-family:Fraunces,serif;font-size:20px;display:inline-grid;place-items:center;min-width:34px;height:34px}
+.rday.today .dt b{background:var(--brand);color:#fff;border-radius:50%}
+.rday .ev{flex:1;display:flex;flex-direction:column;gap:5px;justify-content:center}
+.rday.wkd{padding:6px 0;opacity:.8}
+.rbar .tools{display:flex;gap:8px}
 </style>
 </head>
 <body>
@@ -582,7 +632,7 @@ let repTeam='All';
 let pend=null;          // pending CSV preview
 let pendRep=null;       // pending biometric report preview
 let browseDate=lastWorkday();
-function go(t){tab=t;closeSheet();render();$('#view').scrollTop=0}
+function go(t){tab=t;if(t==='reports')rptJump=true;closeSheet();render();if(!(t==='reports'&&rptView==='cal'))$('#view').scrollTop=0}
 
 /* =============== dashboard =============== */
 function covers(r,ds){return ds>=r.from&&ds<=r.to}
@@ -1157,11 +1207,16 @@ function monthStats(list){
   return {c,t,rate:t?Math.round((c.present+c.late+c.wfh+c.half_day)/t*100):0};
 }
 function vReports(){
+  const sw=`<div class="seg" style="margin-bottom:6px"><button class="${rptView==='cal'?'on':''}" onclick="setRptView('cal')">Calendar report</button><button class="${rptView==='overview'?'on':''}" onclick="setRptView('overview')">Overview</button></div>`;
+  if(rptView==='cal')return `<header class="top"><div class="t"><small>Monthly, weekly and daily</small><h1>Attendance summary</h1></div></header>${sw}${vCalReport()}`;
+  return vReportsOverview(sw);
+}
+function vReportsOverview(sw){
   const act=emps.filter(e=>e.active);
   const all=monthStats(act);
   const list=act.filter(e=>repTeam==='All'||e.team===repTeam);
   return `<header class="top"><div class="t"><small>${new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</small><h1>Reports</h1></div><button class="btn sm hdr-actions" onclick="exportReport()">Export CSV</button></header>
-  <div class="kpis"><div class="kpi g"><small>Attendance rate</small><b>${all.rate}%</b></div>
+  ${sw}<div class="kpis"><div class="kpi g"><small>Attendance rate</small><b>${all.rate}%</b></div>
    <div class="kpi"><small>Absent days</small><b style="color:var(--red)">${all.c.absent}</b></div>
    <div class="kpi"><small>Leave days</small><b style="color:var(--brand)">${all.c.leave}</b></div>
    <div class="kpi"><small>WFH days</small><b style="color:var(--plum)">${all.c.wfh}</b></div></div>
@@ -1185,6 +1240,213 @@ function exportReport(){
   const rows=act.map(e=>{const s=monthStats([e]);return [e.id,e.name,e.team,s.c.present,s.c.late,s.c.wfh,s.c.half_day,s.c.leave,s.c.absent].map(cell).join(',')});
   download('attendance_summary_'+TODAY.slice(0,7)+'.csv','emp_code,name,team,present,late,wfh,half_day,leave,absent\n'+rows.join('\n'));
   toast('Report downloaded');
+}
+
+let rptView='cal';                       // 'cal' = calendar report, 'overview' = old numbers page
+const RP={att:()=>att,reqs:()=>DB.reqs,hols:()=>holidays,pool:()=>emps,teams:()=>teams,person:id=>byId(id),tl:k=>TL[k],active:()=>tab==='reports'&&rptView==='cal',single:false};
+function setRptView(v){rptView=v;rptJump=true;render();if(v!=='cal')$('#view').scrollTop=0}
+/* =============== calendar attendance report (monthly / weekly / daily) =============== */
+/* each page defines RP = {att,reqs,hols,pool,teams,person,tl,active,single} before this block is used */
+let rpt={view:'month',team:'All',emp:''}; // emp '' = everyone in the chosen team
+let rptJump=true;                         // scroll to today the next time the report is drawn
+const rAdd=(ds,n)=>{const d=P(ds);d.setDate(d.getDate()+n);return iso(d)};
+const rMon=ds=>{const d=P(ds);d.setDate(d.getDate()-((d.getDay()+6)%7));return iso(d)};
+const R_GLYPH={pres:'✓',leave:'L',wfh:'W',miss:'!',nodata:'–',hol:'H',we:'',future:''};
+const R_NAME={hol:'Holiday',we:'Weekly off',leave:'On leave',wfh:'Work from home',pres:'Present',miss:'Missing',nodata:'No data',future:'Upcoming'};
+const R_SEG=['leave','wfh','miss','nodata'];   // present people are the empty (white) part of a bar
+
+function rptCtx(){
+  const hol={};RP.hols().forEach(h=>{hol[h.d]=h.n});
+  const rq={};RP.reqs().forEach(r=>{if(r.status==='Approved'||r.status==='Pending')(rq[r.emp]=rq[r.emp]||[]).push(r)});
+  return {hol,rq};
+}
+/* what happened to one person on one date: holiday > weekend/weekly off > leave > work from home > uploaded attendance */
+function dayState(C,e,ds){
+  const dow=P(ds).getDay(), h=C.hol[ds], rec=RP.att()[e.id+'|'+ds]||null;
+  if(h)return {k:'hol',n:h,rec};
+  if(dow===0||dow===6||(rec&&rec.s==='weekoff'))return {k:'we',rec};
+  const reqs=(C.rq[e.id]||[]).filter(r=>ds>=r.from&&ds<=r.to);
+  const lv=reqs.find(r=>r.kind==='leave'), wf=reqs.find(r=>r.kind==='wfh');
+  if(lv)return {k:'leave',req:lv,pend:lv.status==='Pending',rec};
+  if(wf)return {k:'wfh',req:wf,pend:wf.status==='Pending',rec};
+  if(rec){
+    if(rec.s==='present'||rec.s==='late'||rec.s==='half_day')return {k:'pres',half:rec.s==='half_day',late:rec.s==='late',rec};
+    if(rec.s==='wfh')return {k:'wfh',rec};
+    if(rec.s==='leave')return {k:'leave',rec};
+    if(rec.s==='absent')return {k:'miss',rec};
+  }
+  return {k:ds>TODAY?'future':'nodata',rec};
+}
+function rptLabel(s){
+  switch(s.k){
+    case 'hol':return 'Holiday · '+s.n;
+    case 'we':return 'Weekend / weekly off';
+    case 'leave':return (s.req?RP.tl(s.req.type)+' leave':'On leave')+(s.pend?' (pending)':'');
+    case 'wfh':return 'Work from home'+(s.pend?' (pending)':'');
+    case 'pres':return s.half?'Half day':s.late?'Present (late)':'Present';
+    case 'miss':return 'Missing (absent, no leave or WFH)';
+    case 'nodata':return 'No attendance data';
+    default:return 'Upcoming';
+  }
+}
+const rptTimes=s=>s.rec&&s.rec.in?` · ${esc(s.rec.in)} – ${esc(s.rec.out||'—')}`:'';
+function rptPool(){return RP.pool().filter(e=>e.active)}
+function rptGroup(){return rptPool().filter(e=>!e.isMe&&(rpt.team==='All'||e.team===rpt.team)).sort((a,b)=>a.name.localeCompare(b.name))}
+function rptPeople(){
+  if(RP.single)return rptPool();
+  if(rpt.emp){const one=rptPool().find(e=>e.id===rpt.emp);if(one)return [one]}
+  return rptGroup();
+}
+function rptTally(C,people,ds){
+  const t={hol:0,we:0,leave:0,wfh:0,pres:0,miss:0,nodata:0,future:0};
+  people.forEach(e=>{t[dayState(C,e,ds).k]++});return t;
+}
+const rptBarHTML=(t,n)=>`<span class="rb">${R_SEG.map(k=>t[k]?`<i class="rb-${k}" style="width:${t[k]/n*100}%"></i>`:'').join('')}</span>`;
+
+function setRpt(patch){
+  Object.assign(rpt,patch);
+  if('team' in patch&&!('emp' in patch))rpt.emp='';
+  if('view' in patch)rptJump=true;
+  render();
+}
+function rptScrollNow(){
+  if(!RP.active()||!rptJump)return;
+  rptJump=false;
+  const n=$('#view [data-now]'), v=$('#view');
+  if(!n)return;
+  v.style.scrollBehavior='auto';
+  v.scrollTop=n.getBoundingClientRect().top-v.getBoundingClientRect().top+v.scrollTop-($('#view .rbar')?$('#view .rbar').offsetHeight:0)-8;
+  v.style.scrollBehavior='';
+}
+
+/* ---------- monthly: one calendar per month, scrolling down ---------- */
+function rptMonth(C,people,y,m){
+  const one=people.length===1?people[0]:null, n=new Date(y,m+1,0).getDate(), lead=(new Date(y,m,1).getDay()+6)%7;
+  const sum={pres:0,leave:0,wfh:0,miss:0,nodata:0};
+  let cells='<div class="rc empty"></div>'.repeat(lead);
+  for(let d=1;d<=n;d++){
+    const ds=iso(new Date(y,m,d)), dow=new Date(y,m,d).getDay(), wk=dow===0||dow===6, h=C.hol[ds];
+    const cls='rc'+(ds===TODAY?' today':'');
+    const dateLbl=fmt(ds,{weekday:'long',day:'numeric',month:'long'});
+    if(one){
+      const s=dayState(C,one,ds);if(sum[s.k]!==undefined)sum[s.k]++;
+      cells+=`<button class="${cls} rk-${s.k}${s.pend?' rk-pend':''}" title="${esc(rptLabel(s))}" aria-label="${dateLbl}: ${esc(rptLabel(s))}" onclick="rptDay('${ds}','${esc(one.id)}')"><span>${d}</span><small>${s.half?'½':R_GLYPH[s.k]}</small></button>`;
+    }else if(h||wk){
+      cells+=`<button class="${cls} rk-${h?'hol':'we'}" aria-label="${dateLbl}: ${h?esc(h):'weekend'}" onclick="rptDay('${ds}','')"><span>${d}</span><small>${h?'H':''}</small></button>`;
+    }else{
+      const t=rptTally(C,people,ds);Object.keys(sum).forEach(k=>{sum[k]+=t[k]||0});
+      cells+=`<button class="${cls}${ds>TODAY?' rk-future':''}" aria-label="${dateLbl}" onclick="rptDay('${ds}','')"><span>${d}</span>${rptBarHTML(t,people.length||1)}</button>`;
+    }
+  }
+  const now=y===+TODAY.slice(0,4)&&m===+TODAY.slice(5,7)-1;
+  return `<section class="rmonth" ${now?'data-now':''}><h3>${new Date(y,m,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</h3>
+    <div class="rsum">${sum.pres} present · ${sum.leave} leave · ${sum.wfh} WFH · <b class="${sum.miss?'rmiss':''}">${sum.miss} missing</b> · ${sum.nodata} no data${one?' (days)':' (person-days)'}</div>
+    <div class="rgrid">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>`<div class="rdow">${x}</div>`).join('')}${cells}</div></section>`;
+}
+function rptMonths(C,people){
+  const now=new Date(), floor=new Date(now.getFullYear(),now.getMonth()-11,1);
+  let start=new Date(now.getFullYear(),now.getMonth()-2,1);
+  Object.keys(RP.att()).forEach(k=>{const d=k.split('|')[1]||'';const dt=new Date(+d.slice(0,4),+d.slice(5,7)-1,1);if(dt<start)start=dt});
+  if(start<floor)start=floor;
+  const out=[];for(let d=new Date(start);d<=new Date(now.getFullYear(),now.getMonth()+1,1);d=new Date(d.getFullYear(),d.getMonth()+1,1))out.push(rptMonth(C,people,d.getFullYear(),d.getMonth()));
+  return out.join('');
+}
+
+/* ---------- weekly: one block per week (Mon–Sun), scrolling down ---------- */
+function rptWeek(C,people,mon){
+  const days=[0,1,2,3,4,5,6].map(i=>rAdd(mon,i)), one=people.length===1?people[0]:null;
+  const cur=rMon(TODAY)===mon;
+  const head=`${fmt(days[0])} – ${fmt(days[6],{day:'numeric',month:'short',year:'numeric'})}`;
+  let body;
+  if(one){
+    body=days.map(ds=>{const s=dayState(C,one,ds);
+      return `<button class="rwrow" onclick="rptDay('${ds}','${esc(one.id)}')"><span class="rwd ${ds===TODAY?'today':''}"><small>${fmt(ds,{weekday:'short'})}</small><b>${P(ds).getDate()}</b></span><span class="pill2 rk-${s.k}${s.pend?' rk-pend':''}">${esc(rptLabel(s))}${rptTimes(s)}</span></button>`}).join('');
+  }else{
+    const miss=days.map(ds=>{const w=P(ds).getDay();return (C.hol[ds]||w===0||w===6)?0:people.filter(e=>dayState(C,e,ds).k==='miss').length});
+    body=`<div class="rwk"><div class="hd"></div>${days.map(ds=>`<div class="hd ${ds===TODAY?'today':''}">${fmt(ds,{weekday:'short'}).slice(0,3)}<br><b>${P(ds).getDate()}</b></div>`).join('')}
+      <div class="nm" style="color:var(--mute);font-size:11.5px">Missing</div>${miss.map(n=>`<div class="c ${n?'rk-miss':''}" style="min-height:24px;cursor:default;${n?'':'color:var(--mute);background:none;font-weight:500'}">${n||'·'}</div>`).join('')}
+      ${people.map(e=>`<button class="nm lk" onclick="setRpt({emp:'${esc(e.id)}'})" title="Show only ${esc(e.name)}">${esc(e.name)}</button>${days.map(ds=>{const s=dayState(C,e,ds);
+        return `<button class="c rk-${s.k}${s.pend?' rk-pend':''}" title="${esc(e.name)}: ${esc(rptLabel(s))}" aria-label="${esc(e.name)} ${fmt(ds,{weekday:'long',day:'numeric',month:'long'})}: ${esc(rptLabel(s))}" onclick="rptDay('${ds}','${esc(e.id)}')">${s.half?'½':R_GLYPH[s.k]}</button>`}).join('')}`).join('')}</div>`;
+  }
+  return `<section class="rweek" ${cur?'data-now':''}><h3>${head}${cur?' <span class="rnow">This week</span>':''}</h3>${body}</section>`;
+}
+function rptWeeks(C,people){
+  const thisMon=rMon(TODAY);
+  let start=rAdd(thisMon,-7*3);
+  Object.keys(RP.att()).forEach(k=>{const d=k.split('|')[1]||'';if(d&&rMon(d)<start)start=rMon(d)});
+  const floor=rAdd(thisMon,-7*11);if(start<floor)start=floor;
+  const out=[];for(let w=start;w<=rAdd(thisMon,7);w=rAdd(w,7))out.push(rptWeek(C,people,w));
+  return out.join('');
+}
+
+/* ---------- daily: Google-Calendar-style schedule, one row per day ---------- */
+function rptDayPills(C,people,ds){
+  const one=people.length===1?people[0]:null, h=C.hol[ds], w=P(ds).getDay();
+  if(one){const s=dayState(C,one,ds);return `<span class="pill2 rk-${s.k}${s.pend?' rk-pend':''}">${esc(rptLabel(s))}${rptTimes(s)}</span>`}
+  if(h)return `<span class="pill2 rk-hol">Holiday · ${esc(h)}</span>`;
+  if(w===0||w===6)return `<span class="pill2 rk-we">Weekend</span>`;
+  const g={leave:[],wfh:[],miss:[],nodata:[],pres:[]};
+  people.forEach(e=>{const s=dayState(C,e,ds);if(g[s.k])g[s.k].push(e.name.split(' ')[0])});
+  const L={leave:'On leave',wfh:'Work from home',miss:'Missing',nodata:'No data',pres:'Present'};
+  return ['leave','wfh','miss','nodata','pres'].map(k=>{
+    const a=g[k];if(!a.length)return '';
+    if(k==='nodata'&&a.length===people.length)return `<span class="pill2 rk-nodata">No attendance data</span>`;
+    const txt=(k!=='pres'&&a.length<=3)?`${L[k]} · ${a.map(esc).join(', ')}`:`${L[k]} (${a.length})`;
+    return `<span class="pill2 rk-${k}">${txt}</span>`}).join('');
+}
+function rptDays(C,people){
+  const one=people.length===1?people[0]:null;let out='',mon='';
+  for(let i=-30;i<=14;i++){
+    const ds=rAdd(TODAY,i), w=P(ds).getDay(), m=ds.slice(0,7);
+    if(m!==mon){mon=m;out+=`<div class="rmon">${P(ds).toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</div>`}
+    out+=`<div class="rday ${ds===TODAY?'today':''} ${(w===0||w===6)&&!C.hol[ds]?'wkd':''}" ${ds===TODAY?'data-now':''} onclick="rptDay('${ds}','${one?esc(one.id):''}')"><div class="dt"><small>${fmt(ds,{weekday:'short'})}</small><b>${P(ds).getDate()}</b></div><div class="ev">${rptDayPills(C,people,ds)}</div></div>`;
+  }
+  return out;
+}
+
+/* ---------- tap a date: who was where ---------- */
+function rptDay(ds,empId){
+  const C=rptCtx(), people=empId?[RP.person(empId)].filter(Boolean):rptPeople();
+  const title=fmt(ds,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const rows=people.map(e=>[e,dayState(C,e,ds)]);
+  const key=k=>({hol:0,leave:1,wfh:2,miss:3,nodata:4,pres:5,we:6,future:7})[k];
+  let body='';
+  if(people.length===1){
+    const [e,s]=rows[0];
+    body=`<div class="card" style="margin:12px 0 0"><div class="row" style="gap:10px;align-items:center"><b style="flex:1">${esc(e.name)}</b><span class="pill2 rk-${s.k}${s.pend?' rk-pend':''}" style="display:inline-block">${esc(rptLabel(s))}</span></div>
+      ${s.rec&&s.rec.in?`<div class="kv"><span>Check-in</span><b>${esc(s.rec.in)}</b></div><div class="kv"><span>Check-out</span><b>${esc(s.rec.out||'—')}</b></div>`:''}
+      ${s.req?`<div class="kv"><span>Request</span><b>${esc(s.req.no||'')} · ${esc(s.req.status)}</b></div><div class="kv"><span>Dates</span><b>${fmt(s.req.from)}${s.req.to!==s.req.from?' – '+fmt(s.req.to):''}</b></div><div class="kv"><span>Reason</span><b style="max-width:62%;text-align:right">${esc(s.req.reason)}</b></div>`:''}
+      ${s.k==='miss'?'<small style="color:var(--mute);display:block;margin-top:8px">Marked absent in the uploaded attendance, with no approved leave or work-from-home request.</small>':''}
+      ${s.k==='nodata'?'<small style="color:var(--mute);display:block;margin-top:8px">No attendance has been uploaded for this person on this day.</small>':''}</div>`;
+  }else{
+    const first=rows[0]&&rows[0][1];
+    if(first&&(first.k==='hol'||first.k==='we'))body=`<div class="card" style="margin:12px 0 0"><span class="pill2 rk-${first.k}" style="display:inline-block">${first.k==='hol'?'Holiday · '+esc(first.n):'Weekend'}</span></div>`;
+    else{
+      const g={};rows.forEach(([e,s])=>{(g[s.k]=g[s.k]||[]).push([e,s])});
+      body=Object.keys(g).sort((a,b)=>key(a)-key(b)).map(k=>`<div class="card" style="margin:12px 0 0"><div class="row" style="gap:8px;align-items:center;margin-bottom:6px"><span class="pill2 rk-${k}" style="display:inline-block">${R_NAME[k]}</span><b>${g[k].length}</b></div>
+        ${g[k].map(([e,s])=>`<div class="kv"><span>${esc(e.name)}${s.pend?' <i style="color:var(--mute)">(pending)</i>':''}</span><b>${s.rec&&s.rec.in?esc(s.rec.in)+' – '+esc(s.rec.out||'—'):(s.req?esc(s.req.kind==='leave'?RP.tl(s.req.type):'Work from home'):'')}</b></div>`).join('')}</div>`).join('');
+    }
+  }
+  sheet(`<h2 style="font-size:20px">${title}</h2><small style="color:var(--mute)">${people.length===1?esc(people[0].name):(rpt.team==='All'?(RP.groupName||'All teams'):esc(rpt.team))+' · '+people.length+' people'}</small>${body}<button class="btn ghost" style="color:var(--mute)" onclick="closeSheet()">Close</button>`);
+}
+
+/* ---------- the page ---------- */
+function vCalReport(){
+  const pool=rptPool(), grp=pool.filter(e=>!e.isMe).sort((a,b)=>a.name.localeCompare(b.name));
+  const teamNames=RP.teams();
+  const inTeam=grp.filter(e=>rpt.team==='All'||e.team===rpt.team);
+  const me=pool.find(e=>e.isMe);
+  if(rpt.emp&&!pool.some(e=>e.id===rpt.emp))rpt.emp='';
+  const C=rptCtx(), people=rptPeople();
+  const views=[['month','Monthly'],['week','Weekly'],['day','Daily']];
+  const list=rpt.view==='month'?rptMonths(C,people):rpt.view==='week'?rptWeeks(C,people):rptDays(C,people);
+  const filters=RP.single?'':`<div class="tools">${teamNames.length>1?`<select class="in" style="flex:1" aria-label="Team" onchange="setRpt({team:this.value})"><option value="All">${esc(RP.groupName||'All teams')}</option>${teamNames.map(t=>`<option ${rpt.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select>`:''}
+    <select class="in" style="flex:1" aria-label="Employee" onchange="setRpt({emp:this.value})"><option value="">Everyone (${inTeam.length})</option>${inTeam.map(e=>`<option value="${esc(e.id)}" ${rpt.emp===e.id?'selected':''}>${esc(e.name)}</option>`).join('')}${me?`<option value="${esc(me.id)}" ${rpt.emp===me.id?'selected':''}>Me (${esc(me.name)})</option>`:''}</select></div>`;
+  return `<div class="rbar">
+    <div class="seg" style="margin-bottom:8px">${views.map(([k,l])=>`<button class="${rpt.view===k?'on':''}" onclick="setRpt({view:'${k}'})">${l}</button>`).join('')}</div>${filters}</div>
+  <div class="rleg"><span class="rk-hol">Holiday</span><span class="rk-we">Weekend</span><span class="rk-leave">Leave</span><span class="rk-wfh">Work from home</span><span class="rk-pres">Present</span><span class="rk-miss">Missing</span><span class="rk-nodata">No data</span></div>
+  ${people.length?list:'<div class="card" style="text-align:center;color:var(--mute)">Nobody to show here yet.</div>'}
+  <p style="color:var(--mute);font-size:12px;text-align:center;margin:14px 0">Missing = marked absent with no approved leave or WFH. No data = nothing uploaded for that day. Tap a date for details${people.length===1?'':', or a name in the weekly view to show just that person'}.</p>`;
 }
 
 /* =============== more (mobile) + shell =============== */
@@ -1258,6 +1520,7 @@ function render(){
   const cur=tab==='team'?'teams':tab;
   $('#view').innerHTML='<div class="page'+(['org','activity','team','profile','policy'].includes(tab)?' narrow':'')+'">'+VIEWS[tab]()+'</div>';
   $('#view').scrollTop=st;
+  rptScrollNow();
   if(tab==='employees')drawEmpList();
   const items=[['dashboard','Home','grid',''],['employees','Employees','users',''],['teams','Teams','team','dOnly'],['attendance','Attendance','clock',''],['holidays','Holidays','cal',''],['org','Organization','org','dOnly'],['policy','Leave types','cal','dOnly'],['reports','Reports','chart','dOnly'],['activity','Activity','log','dOnly']];
   $('#nav').innerHTML='<div class="brand"><i>L</i>LeaveDesk <span style="font-size:11px;font-family:DM Sans;color:var(--mute);margin-left:2px">Admin</span></div>'

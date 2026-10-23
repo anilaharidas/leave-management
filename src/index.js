@@ -405,6 +405,14 @@ app.get('/api/state', requireUser, async (c) => {
       const att = (await db.prepare('SELECT date, status, check_in, check_out, import_id FROM attendance WHERE employee_id = ? ORDER BY date DESC LIMIT 400').bind(u.id).all()).results;
       att.forEach((a) => { out.att[u.emp_code + '|' + a.date] = { s: a.status, in: a.check_in || '', out: a.check_out || '', batch: 'IMP-' + String(a.import_id || 0).padStart(4, '0') }; });
     }
+    // a manager also sees the attendance of the people who report to them (for the attendance summary)
+    if (hasRole(u, 'manager') && directs.length) {
+      const since = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10);
+      const team = (await db.prepare(
+        `SELECT e.emp_code, a.date, a.status, a.check_in, a.check_out, a.import_id FROM attendance a
+         JOIN employees e ON e.id = a.employee_id WHERE e.manager_id = ? AND a.date >= ?`).bind(u.id, since).all()).results;
+      team.forEach((a) => { out.att[a.emp_code + '|' + a.date] = { s: a.status, in: a.check_in || '', out: a.check_out || '', batch: 'IMP-' + String(a.import_id || 0).padStart(4, '0') }; });
+    }
   }
   let hist = [];
   if (reqRows.length) {
